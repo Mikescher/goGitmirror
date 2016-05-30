@@ -1,14 +1,30 @@
 TemporaryPath = "/tmp"
 
+[[Credentials]]
+Host="github.com"
+Username="root"
+Password="hunter12"
+
+[[Credentials]]
+Host="gitlab.com"
+Username="test"
+Password="password123"
+
+[[Credentials]]
+Host="gitlab.mikescher.com"
+Username="NORAD"
+Password="joshua"
+
 [[Remote]]
-Source = "Hello::11"
-Target = "Hello::12"
+Source = "https://github.com/Mikescher/BefunUtils.git"
+Target = "Hhttps://gitlab.com/Mikescher/BefunUtils.git"
 Branches = ["master", "feature", "dev"]
 
 [[Remote]]
-Source = "Hello::21"
-Target = "Hello::22"
+Force=true
+Source = "https://github.com/Mikescher/BefunUtils.git"
+Target = "https://gitlab.mikescher.com/Mikescher/Gitlabtest.git"
 
 [[Remote]]
-Source = "Hello::31"
-Target = "Hello::32"
+Source = "https://github.com/Mikescher/jClipCorn.git"
+Target = "https://gitlab.mikescher.com/Mikescher/Gitlabtest2.git"
