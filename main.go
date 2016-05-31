@@ -10,11 +10,16 @@ import (
 	"github.com/davecgh/go-spew/spew"
 
 	"os"
+	"os/user"
+	"path/filepath"
 )
 
 const EXIT_SUCCESS = 0
 const EXIT_CONFIG_READ_ERROR = 101
 const EXIT_ERRONEOUS_ADD_ARGS = 201
+const EXIT_ERROR_INTERNAL = 999
+
+var CONFIG_PATH = "~/.config/gogitmirror.toml"
 
 type GGMConfig struct {
 	TemporaryPath       string
@@ -31,7 +36,8 @@ type GGMirror struct {
 
 	Force bool
 
-	Branches []string // If not set, this is []{"master"}
+	Branches            []string // If not set AutoBranchDiscovery becomes true
+	AutoBranchDiscovery bool     // normally not set via TOML, but auto assigned based on host
 
 	SourceCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
 	TargetCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
@@ -45,6 +51,8 @@ type GGCredentials struct {
 }
 
 func main() {
+	Init()
+
 	if len(os.Args) < 2 || Contains(os.Args[1:], "--help") {
 		ExecHelp()
 		return
@@ -61,6 +69,19 @@ func main() {
 	}
 
 	ExecHelp()
+}
+
+func Init() {
+	usr, err := user.Current()
+	if err != nil {
+		os.Stderr.WriteString("ERROR: Cannot read user home dir\n")
+
+		os.Exit(EXIT_ERROR_INTERNAL)
+	}
+
+	if CONFIG_PATH[:2] == "~/" {
+		CONFIG_PATH = filepath.Join(usr.HomeDir, CONFIG_PATH[2:])
+	}
 }
 
 func ExecHelp() {
@@ -80,14 +101,14 @@ func ExecAdd() {
 
 	_, err := url.Parse(source)
 	if err != nil {
-		os.Stderr.WriteString("ERROR: The Source '" + source + "' is not a valid URL")
+		os.Stderr.WriteString("ERROR: The Source '" + source + "' is not a valid URL\n")
 
 		os.Exit(EXIT_ERRONEOUS_ADD_ARGS)
 	}
 
 	_, err = url.Parse(target)
 	if err != nil {
-		os.Stderr.WriteString("ERROR: The Target '" + target + "' is not a valid URL")
+		os.Stderr.WriteString("ERROR: The Target '" + target + "' is not a valid URL\n")
 
 		os.Exit(EXIT_ERRONEOUS_ADD_ARGS)
 	}
@@ -106,9 +127,9 @@ func Contains(slice []string, item string) bool {
 func LoadConfig() GGMConfig {
 	var config GGMConfig
 
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
-		os.Stderr.WriteString("ERROR: Cannot load config.toml")
-		os.Stderr.WriteString("")
+	if _, err := toml.DecodeFile(CONFIG_PATH, &config); err != nil {
+		os.Stderr.WriteString("ERROR: Cannot load config from " + CONFIG_PATH + "\n")
+		os.Stderr.WriteString("\n")
 		os.Stderr.WriteString(err.Error())
 
 		os.Exit(EXIT_CONFIG_READ_ERROR)
@@ -116,7 +137,7 @@ func LoadConfig() GGMConfig {
 
 	for i := 0; i < len(config.Credentials); i++ {
 		if config.Credentials[i].Host == "" {
-			os.Stderr.WriteString("ERROR: Credeentials must have the property 'Host' set ")
+			os.Stderr.WriteString("ERROR: Credeentials must have the property 'Host' set\n")
 
 			os.Exit(EXIT_CONFIG_READ_ERROR)
 		}
@@ -124,31 +145,34 @@ func LoadConfig() GGMConfig {
 
 	for i := 0; i < len(config.Remote); i++ {
 		if config.Remote[i].Source == "" {
-			os.Stderr.WriteString("ERROR: Every remote must have the property 'Source' set")
+			os.Stderr.WriteString("ERROR: Every remote must have the property 'Source' set\n")
 
 			os.Exit(EXIT_CONFIG_READ_ERROR)
 		}
 
 		if config.Remote[i].Target == "" {
-			os.Stderr.WriteString("ERROR: Every remote must have the property 'Target' set")
+			os.Stderr.WriteString("ERROR: Every remote must have the property 'Target' set\n")
 
 			os.Exit(EXIT_CONFIG_READ_ERROR)
 		}
 
 		if config.Remote[i].Branches == nil {
-			config.Remote[i].Branches = []string{"master"} // Default value
+			config.Remote[i].Branches = []string{} // Default value
+			config.Remote[i].AutoBranchDiscovery = true
+		} else {
+			config.Remote[i].AutoBranchDiscovery = false
 		}
 
 		urlSource, err := url.Parse(config.Remote[i].Source)
 		if err != nil {
-			os.Stderr.WriteString("ERROR: The Source '" + config.Remote[i].Source + "' is not a valid URL")
+			os.Stderr.WriteString("ERROR: The Source '" + config.Remote[i].Source + "' is not a valid URL\n")
 
 			os.Exit(EXIT_CONFIG_READ_ERROR)
 		}
 
 		urlTarget, err := url.Parse(config.Remote[i].Target)
 		if err != nil {
-			os.Stderr.WriteString("ERROR: The Target '" + config.Remote[i].Target + "' is not a valid URL")
+			os.Stderr.WriteString("ERROR: The Target '" + config.Remote[i].Target + "' is not a valid URL\n")
 
 			os.Exit(EXIT_CONFIG_READ_ERROR)
 		}
