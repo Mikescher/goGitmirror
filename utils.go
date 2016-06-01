@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net/url"
 	"os"
 	"os/user"
@@ -58,9 +59,7 @@ func IsValidURL(uri string) bool {
 func ExpandPath(path string) string {
 	usr, err := user.Current()
 	if err != nil {
-		os.Stderr.WriteString("ERROR: Cannot read user home dir\n")
-
-		os.Exit(EXIT_ERROR_INTERNAL)
+		EXIT_ERROR("ERROR: Cannot read user home dir", EXIT_ERROR_INTERNAL)
 	}
 
 	if path[:2] == "~/" {
@@ -68,4 +67,35 @@ func ExpandPath(path string) string {
 	}
 
 	return path
+}
+
+func InRange(needle rune, start rune, end rune) bool {
+	return needle >= start && needle <= end
+}
+
+func NormalizeStringToFilePath(str string) string {
+	var buffer bytes.Buffer
+
+	for _, c := range str {
+		if InRange(c, '0', '9') || InRange(c, 'A', 'Z') || InRange(c, 'a', 'z') || c == '-' || c == '.' {
+			buffer.WriteRune(c)
+		}
+	}
+
+	var fragment string
+	fragment = buffer.String()
+	fragment = strings.ToLower(fragment)
+	fragment = strings.TrimSpace(fragment)
+
+	for strings.ContainsRune(fragment, '.') {
+		fragment = fragment[:strings.IndexRune(fragment, '.')]
+	}
+
+	return fragment
+}
+
+func EXIT_ERROR(msg string, code int) {
+	os.Stderr.WriteString(msg + "\n")
+
+	os.Exit(code)
 }

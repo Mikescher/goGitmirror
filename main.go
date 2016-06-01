@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 const EXIT_SUCCESS = 0
@@ -36,7 +34,7 @@ func main() {
 		return
 	}
 
-	if strings.ToLower(os.Args[1]) == "add" && len(os.Args) >= 4 {
+	if strings.ToLower(os.Args[1]) == "add" {
 		ExecAdd()
 		return
 	}
@@ -69,22 +67,34 @@ func ExecCron(force bool) {
 	var config GGMConfig
 	config.LoadFromFile(CONFIG_PATH)
 
-	spew.Dump(config)
+	for _, conf := range config.Remote {
+		conf.Force = conf.Force || force
+
+		if config.AutoCleanTempFolder {
+			conf.CleanFolder()
+		}
+
+		conf.Update()
+
+		if config.AutoCleanTempFolder {
+			conf.CleanFolder()
+		}
+	}
 }
 
 func ExecAdd() {
+	if len(os.Args) < 4 {
+		EXIT_ERROR("ERROR: The comand [Add] needs at least two arguments (source & target)", EXIT_ERRONEOUS_ADD_ARGS)
+	}
+
 	var source = os.Args[2]
 	var target = os.Args[3]
 
 	if !IsValidURL(source) {
-		os.Stderr.WriteString("ERROR: The Source '" + source + "' is not a valid URL\n")
-
-		os.Exit(EXIT_ERRONEOUS_ADD_ARGS)
+		EXIT_ERROR("ERROR: The Source '"+source+"' is not a valid URL", EXIT_ERRONEOUS_ADD_ARGS)
 	}
 
 	if !IsValidURL(target) {
-		os.Stderr.WriteString("ERROR: The Target '" + target + "' is not a valid URL\n")
-
-		os.Exit(EXIT_ERRONEOUS_ADD_ARGS)
+		EXIT_ERROR("ERROR: The Target '"+target+"' is not a valid URL", EXIT_ERRONEOUS_ADD_ARGS)
 	}
 }

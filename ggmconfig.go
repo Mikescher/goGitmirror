@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -28,6 +30,7 @@ type GGMirror struct {
 
 	SourceCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
 	TargetCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
+	TempBaseFolder    string        // normally not set via TOML, but auto assigned from root config
 }
 
 type GGCredentials struct {
@@ -37,66 +40,81 @@ type GGCredentials struct {
 	Password string
 }
 
-func (config GGMConfig) LoadFromFile(path string) {
+func (this *GGMConfig) LoadFromFile(path string) {
 
-	if _, err := toml.DecodeFile(path, &config); err != nil {
-		os.Stderr.WriteString("ERROR: Cannot load config from " + path + "\n")
-		os.Stderr.WriteString("\n")
-		os.Stderr.WriteString(err.Error())
-
-		os.Exit(EXIT_CONFIG_READ_ERROR)
+	if _, err := toml.DecodeFile(path, &this); err != nil {
+		EXIT_ERROR("ERROR: Cannot load config from "+path+"\n\n"+err.Error(), EXIT_CONFIG_READ_ERROR)
 	}
 
-	for i := 0; i < len(config.Credentials); i++ {
-		if config.Credentials[i].Host == "" {
-			os.Stderr.WriteString("ERROR: Credeentials must have the property 'Host' set\n")
-
-			os.Exit(EXIT_CONFIG_READ_ERROR)
+	for i := 0; i < len(this.Credentials); i++ {
+		if this.Credentials[i].Host == "" {
+			EXIT_ERROR("ERROR: Credentials must have the property 'Host' set", EXIT_CONFIG_READ_ERROR)
 		}
 	}
 
-	for i := 0; i < len(config.Remote); i++ {
-		if config.Remote[i].Source == "" {
-			os.Stderr.WriteString("ERROR: Every remote must have the property 'Source' set\n")
-
-			os.Exit(EXIT_CONFIG_READ_ERROR)
+	for i := 0; i < len(this.Remote); i++ {
+		if this.Remote[i].Source == "" {
+			EXIT_ERROR("ERROR: Every remote must have the property 'Source' set", EXIT_CONFIG_READ_ERROR)
 		}
 
-		if config.Remote[i].Target == "" {
-			os.Stderr.WriteString("ERROR: Every remote must have the property 'Target' set\n")
-
-			os.Exit(EXIT_CONFIG_READ_ERROR)
+		if this.Remote[i].Target == "" {
+			EXIT_ERROR("ERROR: Every remote must have the property 'Target' set", EXIT_CONFIG_READ_ERROR)
 		}
 
-		if config.Remote[i].Branches == nil {
-			config.Remote[i].Branches = []string{} // Default value
-			config.Remote[i].AutoBranchDiscovery = true
+		this.Remote[i].TempBaseFolder = this.TemporaryPath
+
+		if this.Remote[i].Branches == nil {
+			this.Remote[i].Branches = []string{} // Default value
+			this.Remote[i].AutoBranchDiscovery = true
 		} else {
-			config.Remote[i].AutoBranchDiscovery = false
+			this.Remote[i].AutoBranchDiscovery = false
 		}
 
-		urlSource, err := url.Parse(config.Remote[i].Source)
+		urlSource, err := url.Parse(this.Remote[i].Source)
 		if err != nil {
-			os.Stderr.WriteString("ERROR: The Source '" + config.Remote[i].Source + "' is not a valid URL\n")
-
-			os.Exit(EXIT_CONFIG_READ_ERROR)
+			EXIT_ERROR("ERROR: The Source '"+this.Remote[i].Source+"' is not a valid URL", EXIT_CONFIG_READ_ERROR)
 		}
 
-		urlTarget, err := url.Parse(config.Remote[i].Target)
+		urlTarget, err := url.Parse(this.Remote[i].Target)
 		if err != nil {
-			os.Stderr.WriteString("ERROR: The Target '" + config.Remote[i].Target + "' is not a valid URL\n")
-
-			os.Exit(EXIT_CONFIG_READ_ERROR)
+			EXIT_ERROR("ERROR: The Target '"+this.Remote[i].Target+"' is not a valid URL", EXIT_CONFIG_READ_ERROR)
 		}
 
-		for _, cred := range config.Credentials {
-			if strings.ToUpper(cred.Host) == strings.ToUpper(urlSource.Host) && config.Remote[i].SourceCredentials.Host == "" {
-				config.Remote[i].SourceCredentials = cred
+		for _, cred := range this.Credentials {
+			if strings.ToUpper(cred.Host) == strings.ToUpper(urlSource.Host) && this.Remote[i].SourceCredentials.Host == "" {
+				this.Remote[i].SourceCredentials = cred
 			}
 
-			if strings.ToUpper(cred.Host) == strings.ToUpper(urlTarget.Host) && config.Remote[i].TargetCredentials.Host == "" {
-				config.Remote[i].TargetCredentials = cred
+			if strings.ToUpper(cred.Host) == strings.ToUpper(urlTarget.Host) && this.Remote[i].TargetCredentials.Host == "" {
+				this.Remote[i].TargetCredentials = cred
 			}
 		}
 	}
+}
+
+func (this GGMirror) GetTargetFolder() string {
+	var buffer bytes.Buffer
+
+	url, _ := url.Parse(this.Target)
+
+	buffer.WriteString(NormalizeStringToFilePath(url.Host))
+
+	for _, shatterling := range strings.Split(strings.Trim(url.Path, "/"), "/") {
+		buffer.WriteRune('_')
+		buffer.WriteString(NormalizeStringToFilePath(shatterling))
+	}
+
+	return filepath.Join(ExpandPath(this.TempBaseFolder), buffer.String())
+}
+
+func (this GGMirror) Update() error {
+	folder := this.GetTargetFolder()
+
+	os.Stderr.WriteString(folder + "\n")
+
+	return nil
+}
+
+func (this GGMirror) CleanFolder() {
+	//TODO DO
 }
