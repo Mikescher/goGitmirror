@@ -134,7 +134,7 @@ func (this GGMirror) Update() error {
 		repo.CloneOrPull(branch, this.Source, this.SourceCredentials)
 
 		LOG_OUT("Pushing branch " + branch + " to target-remote")
-		repo.PushBack(branch, this.Target, this.TargetCredentials)
+		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force)
 	}
 
 	return nil

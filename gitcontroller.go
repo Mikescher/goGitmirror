@@ -37,6 +37,11 @@ func (this *GitController) ExecGitCommand(args ...string) {
 
 func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string) {
 
+	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
+		this.ExecGitCommand(args...)
+		return
+	}
+
 	netRC_read := true
 	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
 	if err != nil {
@@ -97,9 +102,14 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 	}
 }
 
-func (this *GitController) PushBack(branch string, remote string, cred GGCredentials) {
+func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
+	this.RemoveAllRemotes()
 
-	//TODO
+	if useForce {
+		this.ExecCredGitCommand(cred, "push", remote, branch, "--force")
+	} else {
+		this.ExecCredGitCommand(cred, "push", remote, branch)
+	}
 }
 
 func (this *GitController) ListLocalBranches() []string {
@@ -113,9 +123,17 @@ func (this *GitController) ListLocalBranches() []string {
 		line = strings.TrimLeft(line, "*")
 		line = strings.TrimSpace(line)
 
+		branch := ""
+
 		if strings.HasPrefix(strings.ToLower(line), "remotes/origin/") {
-			result = AppendIfUniqueCaseInsensitive(result, line[15:])
-		} else if line != "" {
+			branch = line[15:]
+		} else {
+			branch = line
+		}
+
+		branch = strings.TrimSpace(branch)
+
+		if !IsEmpty(branch) && !strings.EqualFold(branch, "HEAD") {
 			result = AppendIfUniqueCaseInsensitive(result, line)
 		}
 	}
