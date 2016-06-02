@@ -83,10 +83,12 @@ func (this *GGMConfig) LoadFromFile(path string) {
 		for _, cred := range this.Credentials {
 			if strings.ToUpper(cred.Host) == strings.ToUpper(urlSource.Host) && this.Remote[i].SourceCredentials.Host == "" {
 				this.Remote[i].SourceCredentials = cred
+				this.Remote[i].SourceCredentials.Host = urlSource.Host
 			}
 
 			if strings.ToUpper(cred.Host) == strings.ToUpper(urlTarget.Host) && this.Remote[i].TargetCredentials.Host == "" {
 				this.Remote[i].TargetCredentials = cred
+				this.Remote[i].TargetCredentials.Host = urlTarget.Host
 			}
 		}
 	}
@@ -120,16 +122,19 @@ func (this GGMirror) Update() error {
 		EXIT_ERROR("Cannot create tmp folder '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
 	}
 
-	repo := GitController{Folder: folder, Remote: this.Source}
+	repo := GitController{Folder: folder}
 
 	if this.AutoBranchDiscovery {
-		repo.CloneOrPull("master")
+		repo.CloneOrPull("master", this.Source, this.SourceCredentials)
 		this.Branches = repo.ListLocalBranches()
 	}
 
 	for _, branch := range this.Branches {
-		LOG_OUT("Getting branch " + branch + " from remote")
-		repo.CloneOrPull(branch)
+		LOG_OUT("Getting branch " + branch + " from source-remote")
+		repo.CloneOrPull(branch, this.Source, this.SourceCredentials)
+
+		LOG_OUT("Pushing branch " + branch + " to target-remote")
+		repo.PushBack(branch, this.Target, this.TargetCredentials)
 	}
 
 	return nil

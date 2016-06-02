@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"os"
 	"strings"
+
+	"io/ioutil"
 )
 
 type GitController struct {
 	Folder string
-	Remote string
 }
 
 func (this *GitController) ExistsLocal() bool {
@@ -32,6 +35,30 @@ func (this *GitController) ExecGitCommand(args ...string) {
 	}
 }
 
+func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string) {
+
+	netRC_read := true
+	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
+	if err != nil {
+		netRC_read = false
+	}
+
+	credRC := "machine " + cred.Host + " login " + cred.Username + " password " + cred.Password
+
+	err = ioutil.WriteFile(ExpandPath(NETRCPATH), []byte(credRC), 0600)
+	if err != nil {
+		EXIT_ERROR("Cannot write to "+ExpandPath(NETRCPATH), EXIT_GIT_ERROR)
+	}
+
+	this.ExecGitCommand(args...)
+
+	if netRC_read && len(oldNetRC) > 0 && !bytes.Equal([]byte(credRC), oldNetRC) {
+		ioutil.WriteFile(ExpandPath(NETRCPATH), oldNetRC, 0600)
+	} else {
+		os.Remove(ExpandPath(NETRCPATH))
+	}
+}
+
 func (this *GitController) QueryGitCommand(args ...string) string {
 	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
 
@@ -50,26 +77,29 @@ func (this *GitController) RemoveAllRemotes() {
 	branches := this.QueryGitCommand("remote")
 
 	for _, remote := range strings.Split(branches, "\n") {
-		if strings.TrimSpace(remote) != "" {
+		if !IsEmpty(remote) {
 			this.ExecGitCommand("remote", "rm", remote)
 		}
 	}
 }
 
-func (this *GitController) CloneOrPull(branch string) {
+func (this *GitController) CloneOrPull(branch string, remote string, cred GGCredentials) {
 
 	if this.ExistsLocal() {
 		this.RemoveAllRemotes()
-		this.ExecGitCommand("remote", "add", "origin", this.Remote)
+		this.ExecGitCommand("remote", "add", "origin", remote)
 
-		this.ExecGitCommand("fetch", "--all")
+		this.ExecCredGitCommand(cred, "fetch", "--all")
 		this.ExecGitCommand("reset", "--hard", "origin/"+branch)
 
 	} else {
-		LOG_OUT("Cloning fresh remote " + this.Remote + " to " + this.Folder)
-		this.ExecGitCommand("clone", this.Remote, ".", "--origin", "origin")
-		this.ExecGitCommand("pull", this.Remote)
+		this.ExecCredGitCommand(cred, "clone", remote, ".", "--origin", "origin")
 	}
+}
+
+func (this *GitController) PushBack(branch string, remote string, cred GGCredentials) {
+
+	//TODO
 }
 
 func (this *GitController) ListLocalBranches() []string {

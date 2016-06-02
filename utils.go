@@ -159,6 +159,10 @@ func CleanFolder(dir string) error {
 }
 
 func CmdRun(folder string, command string, args ...string) (int, string, string, error) {
+
+	//IF DEBUG
+	LOG_OUT("   > " + command + " " + Join(" ", args))
+
 	wout := new(bytes.Buffer)
 	werr := new(bytes.Buffer)
 
@@ -221,4 +225,8 @@ func AppendIfUniqueCaseInsensitive(slice []string, i string) []string {
 		}
 	}
 	return append(slice, i)
+}
+
+func IsEmpty(value string) bool {
+	return strings.TrimSpace(value) == ""
 }

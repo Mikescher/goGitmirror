@@ -17,3 +17,4 @@ const PROGNAME = "goGitmirror"
 const PROGVERSION = "0.1"
 
 const TEMPFOLDERNAME = "gogitmirror"
+const NETRCPATH = "~/.netrc"
