@@ -134,7 +134,7 @@ func (this *GitController) ListLocalBranches() []string {
 		branch = strings.TrimSpace(branch)
 
 		if !IsEmpty(branch) && !strings.EqualFold(branch, "HEAD") {
-			result = AppendIfUniqueCaseInsensitive(result, line)
+			result = AppendIfUniqueCaseInsensitive(result, branch)
 		}
 	}
 
