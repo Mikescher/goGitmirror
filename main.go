@@ -7,18 +7,7 @@ import (
 	"strings"
 )
 
-const EXIT_SUCCESS = 0
-const EXIT_CONFIG_READ_ERROR = 101
-const EXIT_ERRONEOUS_ADD_ARGS = 201
-const EXIT_ERROR_INTERNAL = 999
-
-var CONFIG_PATH = "~/.config/gogitmirror.toml"
-
-var PROGNAME = "goGitmirror"
-var PROGVERSION = "0.1"
-
 func main() {
-	Init()
 
 	if len(os.Args) < 2 || ParamIsSet("help") {
 		ExecHelp()
@@ -42,10 +31,6 @@ func main() {
 	ExecHelp()
 }
 
-func Init() {
-	CONFIG_PATH = ExpandPath(CONFIG_PATH)
-}
-
 func ExecVersion() {
 	fmt.Println(PROGNAME + " " + PROGVERSION)
 }
@@ -65,20 +50,29 @@ func ExecHelp() {
 
 func ExecCron(force bool) {
 	var config GGMConfig
-	config.LoadFromFile(CONFIG_PATH)
+
+	LOG_OUT("Reading config file")
+	LOG_LINESEP()
+	config.LoadFromFile(ExpandPath(CONFIG_PATH))
 
 	for _, conf := range config.Remote {
+		LOG_OUT("Processing remote " + conf.Target)
+
 		conf.Force = conf.Force || force
 
 		if config.AutoCleanTempFolder {
+			LOG_OUT("Testing temp folder for remote " + conf.Target)
 			conf.CleanFolder()
 		}
 
 		conf.Update()
 
 		if config.AutoCleanTempFolder {
+			LOG_OUT("Cleaning temp folder for remote " + conf.Target)
 			conf.CleanFolder()
 		}
+
+		LOG_LINESEP()
 	}
 }
 

@@ -104,17 +104,56 @@ func (this GGMirror) GetTargetFolder() string {
 		buffer.WriteString(NormalizeStringToFilePath(shatterling))
 	}
 
-	return filepath.Join(ExpandPath(this.TempBaseFolder), buffer.String())
+	return filepath.Join(ExpandPath(this.TempBaseFolder), TEMPFOLDERNAME, buffer.String())
 }
 
 func (this GGMirror) Update() error {
 	folder := this.GetTargetFolder()
 
-	os.Stderr.WriteString(folder + "\n")
+	if !PathIsValid(folder) {
+		EXIT_ERROR("The temporary ggm path is not a valid path '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
+	}
+
+	err := os.MkdirAll(folder, 0777)
+
+	if err != nil {
+		EXIT_ERROR("Cannot create tmp folder '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
+	}
+
+	repo := GitController{Folder: folder, Remote: this.Source}
+
+	if this.AutoBranchDiscovery {
+		repo.CloneOrPull("master")
+		this.Branches = repo.ListLocalBranches()
+	}
+
+	for _, branch := range this.Branches {
+		LOG_OUT("Getting branch " + branch + " from remote")
+		repo.CloneOrPull(branch)
+	}
 
 	return nil
 }
 
 func (this GGMirror) CleanFolder() {
-	//TODO DO
+	folder := this.GetTargetFolder()
+
+	if !PathIsValid(folder) {
+		EXIT_ERROR("The temporary ggm path is not a valid path '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
+	}
+
+	if PathExists(folder) {
+		err := CleanFolder(folder)
+
+		if err != nil {
+			EXIT_ERROR("Cannot clean tmp folder '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
+		}
+	}
+
+	err := os.MkdirAll(folder, 0777)
+
+	if err != nil {
+		EXIT_ERROR("Cannot create tmp folder '"+folder+"'", EXIT_FILESYSTEM_ACCESS_ERROR)
+	}
+
 }

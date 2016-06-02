@@ -2,11 +2,17 @@ package main
 
 import (
 	"bytes"
-	"net/url"
-	"os"
-	"os/user"
-	"path/filepath"
+	"errors"
 	"strings"
+	"syscall"
+
+	"net/url"
+
+	"os"
+	"os/exec"
+	"os/user"
+
+	"path/filepath"
 )
 
 func Contains(slice []string, item string) bool {
@@ -98,4 +104,121 @@ func EXIT_ERROR(msg string, code int) {
 	os.Stderr.WriteString(msg + "\n")
 
 	os.Exit(code)
+}
+
+func LOG_OUT(msg string) {
+	os.Stdout.WriteString(msg + "\n")
+}
+
+func LOG_LINESEP() {
+	os.Stdout.WriteString("\n")
+}
+
+func PathIsValid(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return true
+	}
+
+	return false
+}
+
+func PathExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+
+	EXIT_ERROR("Internal Error: Invalid folder :"+path, EXIT_ERROR_INTERNAL)
+	return false
+}
+
+func CleanFolder(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CmdRun(folder string, command string, args ...string) (int, string, string, error) {
+	wout := new(bytes.Buffer)
+	werr := new(bytes.Buffer)
+
+	binary, err := exec.LookPath(command)
+
+	if err != nil {
+		return 0, "", "", errors.New("The binary '" + command + "' was not found on this system")
+	}
+
+	cmd := exec.Command(binary, args...)
+
+	cmd.Dir = folder
+	cmd.Stdout = wout
+	cmd.Stderr = werr
+
+	if err := cmd.Start(); err != nil {
+		return 0, "", "", err
+	}
+
+	if err := cmd.Wait(); err != nil {
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+
+			// This works on both Unix and Windows. Although package
+			// syscall is generally platform dependent, WaitStatus is
+			// defined for both Unix and Windows and in both cases has
+			// an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				return status.ExitStatus(), wout.String(), werr.String(), nil
+			}
+		} else {
+			return 0, "", "", err
+		}
+	}
+
+	return 0, wout.String(), werr.String(), nil
+}
+
+func Join(sep string, arr []string) string {
+	var buffer bytes.Buffer
+
+	var first = true
+	for _, piece := range arr {
+		if first {
+			first = false
+			buffer.WriteString(piece)
+		} else {
+			buffer.WriteString(sep)
+			buffer.WriteString(piece)
+		}
+	}
+
+	return buffer.String()
+}
+
+func AppendIfUniqueCaseInsensitive(slice []string, i string) []string {
+	for _, ele := range slice {
+		if strings.EqualFold(ele, i) {
+			return slice
+		}
+	}
+	return append(slice, i)
 }
