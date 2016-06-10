@@ -82,6 +82,7 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 
 		this.ExecCredGitCommand(cred, "fetch", "--all")
 		this.ExecGitCommand("checkout", "-f", "origin/"+branch)
+		this.ExecCredGitCommand(cred, "fetch", "--all")
 		this.ExecGitCommand("reset", "--hard", "origin/"+branch)
 
 	} else {
@@ -99,8 +100,8 @@ func (this *GitController) PushBack(branch string, remote string, cred GGCredent
 	this.ExecGitCommand("remote", "add", "origin", remote)
 
 	this.ExecCredGitCommand(cred, "fetch", "--all")
-	this.ExecCredGitCommand(cred, "checkout", "-f", branch)
 	this.ExecCredGitCommand(cred, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, "checkout", branch)
 	status := this.ExecGitCommand("status")
 	LOG_OUT(status)
 
