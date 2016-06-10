@@ -81,31 +81,35 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 		this.ExecGitCommand("remote", "add", "origin", remote)
 
 		this.ExecCredGitCommand(cred, "fetch", "--all")
+		this.ExecGitCommand("checkout", "-f", "origin/"+branch)
 		this.ExecGitCommand("reset", "--hard", "origin/"+branch)
 
 	} else {
 		this.ExecCredGitCommand(cred, "clone", remote, ".", "--origin", "origin")
+		this.ExecGitCommand("checkout", "-f", "origin/"+branch)
 	}
 
-	this.ExecGitCommand("checkout", "-f", "origin/"+branch)
+	this.ExecCredGitCommand(cred, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, "clean", "-f", "-d")
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
 
 	this.RemoveAllRemotes()
-
 	this.ExecGitCommand("remote", "add", "origin", remote)
+
+	this.ExecCredGitCommand(cred, "fetch", "--all")
+	this.ExecCredGitCommand(cred, "checkout", "-f", branch)
+	this.ExecCredGitCommand(cred, "branch", "-u", "origin/"+branch, branch)
 	status := this.ExecGitCommand("status")
 	LOG_OUT(status)
-
-	this.RemoveAllRemotes()
 
 	var commandoutput string
 
 	if useForce {
-		commandoutput = this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch, "--force")
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--force")
 	} else {
-		commandoutput = this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch)
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch)
 	}
 
 	LOG_OUT(commandoutput)
