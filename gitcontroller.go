@@ -89,9 +89,9 @@ func (this *GitController) PushBack(branch string, remote string, cred GGCredent
 	this.RemoveAllRemotes()
 
 	if useForce {
-		this.ExecCredGitCommand(cred, "push", remote, branch, "--force")
+		this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch, "--force")
 	} else {
-		this.ExecCredGitCommand(cred, "push", remote, branch)
+		this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch)
 	}
 }
 
