@@ -133,6 +133,12 @@ func (this GGMirror) Update() error {
 	if this.AutoBranchDiscovery {
 		repo.CloneOrPull("master", this.Source, this.SourceCredentials)
 		this.Branches = repo.ListLocalBranches()
+
+		for _, branch := range this.Branches {
+			LOG_OUT("Found branch " + branch + " in source-remote")
+		}
+
+		LOG_OUT("")
 	}
 
 	for _, branch := range this.Branches {

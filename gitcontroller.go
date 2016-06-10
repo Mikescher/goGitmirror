@@ -125,6 +125,10 @@ func (this *GitController) ListLocalBranches() []string {
 
 		branch := ""
 
+		if strings.Contains(line, " -> ") {
+			line = line[:strings.Index(line, " -> ")]
+		}
+
 		if strings.HasPrefix(strings.ToLower(line), "remotes/origin/") {
 			branch = line[15:]
 		} else {
