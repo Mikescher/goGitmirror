@@ -19,8 +19,8 @@ func (this *GitController) ExistsLocal() bool {
 	return exitcode == 0
 }
 
-func (this *GitController) ExecGitCommand(args ...string) {
-	exitcode, _, stderr, err := CmdRun(this.Folder, "git", args...)
+func (this *GitController) ExecGitCommand(args ...string) string {
+	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
 
 	if err != nil {
 		EXIT_ERROR("Error executing command 'git "+args[0]+"'\n\n"+err.Error(), EXIT_GIT_ERROR)
@@ -29,22 +29,25 @@ func (this *GitController) ExecGitCommand(args ...string) {
 	if exitcode != 0 {
 		EXIT_ERROR("Error in command 'git "+args[0]+"'\n\n"+stderr, EXIT_GIT_ERROR)
 	}
+
+	return stdout
 }
 
-func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string) {
+func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string) string {
 
 	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
-		this.ExecGitCommand(args...)
-		return
+		return this.ExecGitCommand(args...)
 	}
 
 	credRC := "machine " + cred.Host + " login " + cred.Username + " password " + cred.Password
 
 	EnterNetRCBlock(credRC)
 
-	this.ExecGitCommand(args...)
+	stdout := this.ExecGitCommand(args...)
 
 	ExitNetRCBlock()
+
+	return stdout
 }
 
 func (this *GitController) QueryGitCommand(args ...string) string {
@@ -83,16 +86,25 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 	} else {
 		this.ExecCredGitCommand(cred, "clone", remote, ".", "--origin", "origin")
 	}
+
+	this.ExecGitCommand("checkout", "-f", "origin/"+branch)
+	status := this.ExecGitCommand("status")
+
+	LOG_OUT(status)
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
 	this.RemoveAllRemotes()
 
+	var commandoutput string
+
 	if useForce {
-		this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch, "--force")
+		commandoutput = this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch, "--force")
 	} else {
-		this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch)
+		commandoutput = this.ExecCredGitCommand(cred, "push", remote, "HEAD:"+branch)
 	}
+
+	LOG_OUT(commandoutput)
 }
 
 func (this *GitController) ListLocalBranches() []string {
