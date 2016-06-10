@@ -50,6 +50,12 @@ func (this *GGMConfig) LoadFromFile(path string) {
 		if this.Credentials[i].Host == "" {
 			EXIT_ERROR("ERROR: Credentials must have the property 'Host' set", EXIT_CONFIG_READ_ERROR)
 		}
+
+		if len(this.Credentials[i].Password) > 5 && this.Credentials[i].Password[:4] == "aes:" {
+			this.Credentials[i].Password = Decrypt(this.Credentials[i].Password[4:])
+		} else if this.Credentials[i].Password != "" {
+			LOG_OUT("WARNING: password for host " + this.Credentials[i].Host + " is unencrypted")
+		}
 	}
 
 	for i := 0; i < len(this.Remote); i++ {

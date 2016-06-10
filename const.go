@@ -6,6 +6,7 @@ const EXIT_CONFIG_READ_ERROR = 11
 const EXIT_FILESYSTEM_ACCESS_ERROR = 12
 
 const EXIT_ERRONEOUS_ADD_ARGS = 21
+const EXIT_ERRONEOUS_CRYPT_ARGS = 22
 
 const EXIT_GIT_ERROR = 31
 
@@ -18,3 +19,5 @@ const PROGVERSION = "0.1"
 
 const TEMPFOLDERNAME = "gogitmirror"
 const NETRCPATH = "~/.netrc"
+
+const SALT = "iBl0Vf3SPGq65m4X"

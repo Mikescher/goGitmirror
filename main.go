@@ -28,6 +28,11 @@ func main() {
 		return
 	}
 
+	if strings.ToLower(os.Args[1]) == "crypt" {
+		ExecCrypt()
+		return
+	}
+
 	ExecHelp()
 }
 
@@ -46,6 +51,9 @@ func ExecHelp() {
 	fmt.Println("   cron [--force]")
 	fmt.Println("       update all targets, optionally specify --force to")
 	fmt.Println("       force push all remotes")
+	fmt.Println("")
+	fmt.Println("   cyrpt $password")
+	fmt.Println("       encrypt an password for use in config file")
 }
 
 func ExecCron(force bool) {
@@ -91,4 +99,12 @@ func ExecAdd() {
 	if !IsValidURL(target) {
 		EXIT_ERROR("ERROR: The Target '"+target+"' is not a valid URL", EXIT_ERRONEOUS_ADD_ARGS)
 	}
+}
+
+func ExecCrypt() {
+	if len(os.Args) < 3 {
+		EXIT_ERROR("ERROR: The comand [Crypt] needs an password supplied as argument", EXIT_ERRONEOUS_CRYPT_ARGS)
+	}
+
+	LOG_OUT("aes:" + Encrypt(os.Args[2]))
 }
