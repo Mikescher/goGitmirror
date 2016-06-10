@@ -88,12 +88,16 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 	}
 
 	this.ExecGitCommand("checkout", "-f", "origin/"+branch)
-	status := this.ExecGitCommand("status")
-
-	LOG_OUT(status)
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
+
+	this.RemoveAllRemotes()
+
+	this.ExecGitCommand("remote", "add", "origin", remote)
+	status := this.ExecGitCommand("status")
+	LOG_OUT(status)
+
 	this.RemoveAllRemotes()
 
 	var commandoutput string
@@ -132,7 +136,7 @@ func (this *GitController) ListLocalBranches() []string {
 
 		branch = strings.TrimSpace(branch)
 
-		if !IsEmpty(branch) && !strings.EqualFold(branch, "HEAD") {
+		if !IsEmpty(branch) && !strings.EqualFold(branch, "HEAD") && branch[0:1] != "(" {
 			result = AppendIfUniqueCaseInsensitive(result, branch)
 		}
 	}
