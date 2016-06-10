@@ -13,7 +13,47 @@ import (
 	"os/user"
 
 	"path/filepath"
+
+	"io/ioutil"
 )
+
+var netRCBlock bool
+var netRCBackup []byte
+
+func EnterNetRCBlock(content string) {
+	netRC_read := true
+	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
+	if err != nil {
+		netRC_read = false
+	}
+
+	err = ioutil.WriteFile(ExpandPath(NETRCPATH), []byte(content), 0600)
+	if err != nil {
+		EXIT_ERROR("Cannot write to "+ExpandPath(NETRCPATH), EXIT_GIT_ERROR)
+	}
+
+	if netRC_read && len(oldNetRC) > 0 && !bytes.Equal([]byte(content), oldNetRC) {
+		netRCBackup = oldNetRC
+		netRCBlock = true
+	} else {
+		netRCBackup = nil
+		netRCBlock = true
+	}
+}
+
+func ExitNetRCBlock() {
+	if !netRCBlock {
+		return
+	}
+
+	if netRCBackup == nil {
+		ioutil.WriteFile(ExpandPath(NETRCPATH), netRCBackup, 0600)
+		netRCBlock = false
+	} else {
+		os.Remove(ExpandPath(NETRCPATH))
+		netRCBlock = false
+	}
+}
 
 func Contains(slice []string, item string) bool {
 	set := make(map[string]struct{}, len(slice))
@@ -102,6 +142,8 @@ func NormalizeStringToFilePath(str string) string {
 
 func EXIT_ERROR(msg string, code int) {
 	os.Stderr.WriteString(msg + "\n")
+
+	ExitNetRCBlock()
 
 	os.Exit(code)
 }

@@ -1,11 +1,7 @@
 package main
 
 import (
-	"bytes"
-	"os"
 	"strings"
-
-	"io/ioutil"
 )
 
 type GitController struct {
@@ -42,26 +38,13 @@ func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string
 		return
 	}
 
-	netRC_read := true
-	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
-	if err != nil {
-		netRC_read = false
-	}
-
 	credRC := "machine " + cred.Host + " login " + cred.Username + " password " + cred.Password
 
-	err = ioutil.WriteFile(ExpandPath(NETRCPATH), []byte(credRC), 0600)
-	if err != nil {
-		EXIT_ERROR("Cannot write to "+ExpandPath(NETRCPATH), EXIT_GIT_ERROR)
-	}
+	EnterNetRCBlock(credRC)
 
 	this.ExecGitCommand(args...)
 
-	if netRC_read && len(oldNetRC) > 0 && !bytes.Equal([]byte(credRC), oldNetRC) {
-		ioutil.WriteFile(ExpandPath(NETRCPATH), oldNetRC, 0600)
-	} else {
-		os.Remove(ExpandPath(NETRCPATH))
-	}
+	ExitNetRCBlock()
 }
 
 func (this *GitController) QueryGitCommand(args ...string) string {
