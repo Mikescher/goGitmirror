@@ -133,7 +133,7 @@ func NormalizeStringToFilePath(str string) string {
 	fragment = strings.ToLower(fragment)
 	fragment = strings.TrimSpace(fragment)
 
-	for strings.ContainsRune(fragment, '.') {
+	if strings.ContainsRune(fragment, '.') {
 		fragment = fragment[:strings.LastIndex(fragment, ".")]
 	}
 
