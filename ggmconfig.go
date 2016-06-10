@@ -130,6 +130,10 @@ func (this GGMirror) Update() error {
 
 	repo := GitController{Folder: folder}
 
+	if repo.ExistsLocal() {
+		repo.GarbageCollect()
+	}
+
 	if this.AutoBranchDiscovery {
 		repo.CloneOrPull("master", this.Source, this.SourceCredentials)
 		this.Branches = repo.ListLocalBranches()

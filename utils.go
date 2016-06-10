@@ -240,6 +240,11 @@ func CmdRun(folder string, command string, args ...string) (int, string, string,
 		}
 	}
 
+	//IF DEBUG
+	//for _, s := range strings.Split(wout.String(), "\n") {
+	//	LOG_OUT("      :   " + s)
+	//}
+
 	return 0, wout.String(), werr.String(), nil
 }
 
