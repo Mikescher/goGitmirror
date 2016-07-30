@@ -94,12 +94,41 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
+	if this.HasRemoteBranch(branch) {
+		this.PushBackExistingBranch(branch, remote, cred, useForce)
+	} else {
+		this.PushBackNewBranch(branch, remote, cred, useForce)
+	}
+}
+
+func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, useForce bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand("remote", "add", "origin", remote)
 
 	this.ExecCredGitCommand(cred, "fetch", "--all")
 	this.ExecCredGitCommand(cred, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, "checkout", branch)
+	status := this.ExecGitCommand("status")
+	LOG_OUT(status)
+
+	var commandoutput string
+
+	if useForce {
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--force")
+	} else {
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch)
+	}
+
+	LOG_OUT(commandoutput)
+}
+
+func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, useForce bool) {
+
+	this.RemoveAllRemotes()
+	this.ExecGitCommand("remote", "add", "origin", remote)
+
+	this.ExecCredGitCommand(cred, "fetch", "--all")
 	this.ExecCredGitCommand(cred, "checkout", branch)
 	status := this.ExecGitCommand("status")
 	LOG_OUT(status)
@@ -150,4 +179,35 @@ func (this *GitController) ListLocalBranches() []string {
 	}
 
 	return result
+}
+
+func (this *GitController) HasRemoteBranch(branchname string) bool {
+	stdout := this.QueryGitCommand("branch", "-r", "--list")
+	lines := strings.Split(stdout, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		line = strings.TrimLeft(line, "*")
+		line = strings.TrimSpace(line)
+
+		branch := ""
+
+		if strings.Contains(line, " -> ") {
+			line = line[:strings.Index(line, " -> ")]
+		}
+
+		if strings.HasPrefix(strings.ToLower(line), "remotes/origin/") {
+			branch = line[15:]
+		} else {
+			branch = line
+		}
+
+		branch = strings.TrimSpace(branch)
+
+		if strings.EqualFold(branch, branchname) {
+			return true
+		}
+	}
+
+	return false
 }
