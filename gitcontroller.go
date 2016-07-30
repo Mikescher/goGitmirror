@@ -115,9 +115,9 @@ func (this *GitController) PushBackExistingBranch(branch string, remote string, 
 	var commandoutput string
 
 	if useForce {
-		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--force")
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
 	} else {
-		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch)
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--follow-tags")
 	}
 
 	LOG_OUT(commandoutput)
@@ -136,9 +136,9 @@ func (this *GitController) PushBackNewBranch(branch string, remote string, cred 
 	var commandoutput string
 
 	if useForce {
-		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--force")
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--tags", "--force")
 	} else {
-		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch)
+		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--tags")
 	}
 
 	LOG_OUT(commandoutput)
