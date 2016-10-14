@@ -13,6 +13,7 @@ import (
 type GGMConfig struct {
 	TemporaryPath       string
 	AutoCleanTempFolder bool
+	AutoForceFallback   bool
 
 	Credentials []GGCredentials
 
@@ -115,7 +116,7 @@ func (this GGMirror) GetTargetFolder() string {
 	return filepath.Join(ExpandPath(this.TempBaseFolder), TEMPFOLDERNAME, buffer.String())
 }
 
-func (this GGMirror) Update() error {
+func (this GGMirror) Update(config GGMConfig) error {
 	folder := this.GetTargetFolder()
 
 	if !PathIsValid(folder) {
@@ -150,7 +151,7 @@ func (this GGMirror) Update() error {
 		repo.CloneOrPull(branch, this.Source, this.SourceCredentials)
 
 		LOG_OUT("Pushing branch " + branch + " to target-remote")
-		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force)
+		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force, config.AutoForceFallback)
 	}
 
 	return nil

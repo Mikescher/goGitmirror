@@ -1,6 +1,8 @@
 # fill me with values and put me into ~/.config/gogitmirror.toml
 
 TemporaryPath = "/tmp"
+AutoForceFallback = true
+#AutoCleanTempFolder = false
 
 [[Credentials]]
 Host="github.com"
@@ -20,12 +22,14 @@ Password="joshua"
 [[Remote]]
 Source = "https://github.com/Mikescher/BefunUtils.git"
 Target = "Hhttps://gitlab.com/Mikescher/BefunUtils.git"
-Branches = ["master", "feature", "dev"]
+#Branches = ["master", "feature", "dev"]
+#Force=true
 
 [[Remote]]
 Force=true
 Source = "https://github.com/Mikescher/BefunUtils.git"
 Target = "https://gitlab.mikescher.com/Mikescher/Gitlabtest.git"
+Branches = ["master", "feature", "dev"]
 
 [[Remote]]
 Source = "https://github.com/Mikescher/jClipCorn.git"

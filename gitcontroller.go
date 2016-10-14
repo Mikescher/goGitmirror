@@ -19,6 +19,20 @@ func (this *GitController) ExistsLocal() bool {
 	return exitcode == 0
 }
 
+func (this *GitController) ExecGitCommandSafe(args ...string) (int, string, string) {
+	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
+
+	if err != nil {
+		exitcode = -1
+		stderr = "Recoverable Error executing command 'git " + args[0] + "'\n\n" + err.Error()
+		LOG_OUT("Recoverable Internal Error in command 'git " + args[0] + "'\n\n" + stderr)
+	} else if exitcode != 0 {
+		LOG_OUT("Recoverable Error in command 'git " + args[0] + "'\n\n" + stderr)
+	}
+
+	return exitcode, stdout, stderr
+}
+
 func (this *GitController) ExecGitCommand(args ...string) string {
 	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
 
@@ -33,15 +47,28 @@ func (this *GitController) ExecGitCommand(args ...string) string {
 	return stdout
 }
 
+func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, args ...string) (int, string, string) {
+
+	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
+		return this.ExecGitCommandSafe(args...)
+	}
+
+	EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
+
+	exitcode, stdout, stderr := this.ExecGitCommandSafe(args...)
+
+	ExitNetRCBlock()
+
+	return exitcode, stdout, stderr
+}
+
 func (this *GitController) ExecCredGitCommand(cred GGCredentials, args ...string) string {
 
 	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
 		return this.ExecGitCommand(args...)
 	}
 
-	credRC := "machine " + cred.Host + " login " + cred.Username + " password " + cred.Password
-
-	EnterNetRCBlock(credRC)
+	EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
 
 	stdout := this.ExecGitCommand(args...)
 
@@ -93,15 +120,17 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 	this.ExecCredGitCommand(cred, "clean", "-f", "-d")
 }
 
-func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool) {
+func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool) {
 	if this.HasRemoteBranch(branch) {
-		this.PushBackExistingBranch(branch, remote, cred, useForce)
+		LOG_OUT("Branch " + branch + " does exist on remote " + remote)
+		this.PushBackExistingBranch(branch, remote, cred, useForce, forceFallback)
 	} else {
-		this.PushBackNewBranch(branch, remote, cred, useForce)
+		LOG_OUT("Branch " + branch + " does not exist on remote " + remote)
+		this.PushBackNewBranch(branch, remote, cred, useForce, forceFallback)
 	}
 }
 
-func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, useForce bool) {
+func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand("remote", "add", "origin", remote)
@@ -116,6 +145,13 @@ func (this *GitController) PushBackExistingBranch(branch string, remote string, 
 
 	if useForce {
 		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
+	} else if forceFallback {
+		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, "push", "origin", "HEAD:"+branch, "--follow-tags")
+		commandoutput = stdout
+		if exitcode != 0 {
+			LOG_OUT("Command in normal mode failed - falling back to force-push")
+			commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
+		}
 	} else {
 		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--follow-tags")
 	}
@@ -123,7 +159,7 @@ func (this *GitController) PushBackExistingBranch(branch string, remote string, 
 	LOG_OUT(commandoutput)
 }
 
-func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, useForce bool) {
+func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand("remote", "add", "origin", remote)
@@ -137,6 +173,13 @@ func (this *GitController) PushBackNewBranch(branch string, remote string, cred 
 
 	if useForce {
 		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--tags", "--force")
+	} else if forceFallback {
+		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, "push", "origin", "HEAD:"+branch, "--tags")
+		commandoutput = stdout
+		if exitcode != 0 {
+			LOG_OUT("Command in normal mode failed - falling back to force-push")
+			commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--tags", "--force")
+		}
 	} else {
 		commandoutput = this.ExecCredGitCommand(cred, "push", "origin", "HEAD:"+branch, "--tags")
 	}
@@ -198,6 +241,8 @@ func (this *GitController) HasRemoteBranch(branchname string) bool {
 
 		if strings.HasPrefix(strings.ToLower(line), "remotes/origin/") {
 			branch = line[15:]
+		} else if strings.HasPrefix(strings.ToLower(line), "origin/") {
+			branch = line[7:]
 		} else {
 			branch = line
 		}

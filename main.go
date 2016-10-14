@@ -73,7 +73,7 @@ func ExecCron(force bool) {
 			conf.CleanFolder()
 		}
 
-		conf.Update()
+		conf.Update(config)
 
 		if config.AutoCleanTempFolder {
 			LOG_OUT("Cleaning temp folder for remote " + conf.Target)
