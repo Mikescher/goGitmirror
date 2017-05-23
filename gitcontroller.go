@@ -121,6 +121,10 @@ func (this *GitController) CloneOrPull(branch string, remote string, cred GGCred
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool) {
+
+	this.RemoveAllRemotes()
+	this.ExecGitCommand("remote", "add", "origin", remote)
+
 	if this.HasRemoteBranch(branch) {
 		LOG_OUT("Branch " + branch + " does exist on remote " + remote)
 		this.PushBackExistingBranch(branch, remote, cred, useForce, forceFallback)
