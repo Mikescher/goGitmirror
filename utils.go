@@ -21,7 +21,8 @@ var netRCBlock bool
 var netRCBackup []byte
 
 func EnterNetRCBlock(host string, usr string, pass string) {
-	content := "machine " + host + " login " + usr + " password " + pass
+	//content := "machine " + host + " login " + usr + " password " + pass
+	content := "default " + " login " + usr + " password " + pass
 
 	netRC_read := true
 	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
@@ -43,12 +44,12 @@ func EnterNetRCBlock(host string, usr string, pass string) {
 	}
 }
 
-func ExitNetRCBlock() {
+func ExitNetRCBlock(forceClean bool) {
 	if !netRCBlock {
 		return
 	}
 
-	if netRCBackup == nil {
+	if netRCBackup == nil && !forceClean {
 		ioutil.WriteFile(ExpandPath(NETRCPATH), netRCBackup, 0600)
 		netRCBlock = false
 	} else {
@@ -145,7 +146,7 @@ func NormalizeStringToFilePath(str string) string {
 func EXIT_ERROR(msg string, code int) {
 	os.Stderr.WriteString(msg + "\n")
 
-	ExitNetRCBlock()
+	ExitNetRCBlock(false)
 
 	os.Exit(code)
 }

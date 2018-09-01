@@ -14,6 +14,7 @@ type GGMConfig struct {
 	TemporaryPath       string
 	AutoCleanTempFolder bool
 	AutoForceFallback   bool
+	AlwaysCleanNetRC    bool
 
 	Credentials []GGCredentials
 
@@ -136,7 +137,7 @@ func (this GGMirror) Update(config GGMConfig) error {
 	}
 
 	if this.AutoBranchDiscovery {
-		repo.CloneOrPull("master", this.Source, this.SourceCredentials)
+		repo.CloneOrPull("master", this.Source, this.SourceCredentials, config.AlwaysCleanNetRC)
 		this.Branches = repo.ListLocalBranches()
 
 		for _, branch := range this.Branches {
@@ -148,10 +149,10 @@ func (this GGMirror) Update(config GGMConfig) error {
 
 	for _, branch := range this.Branches {
 		LOG_OUT("Getting branch " + branch + " from source-remote")
-		repo.CloneOrPull(branch, this.Source, this.SourceCredentials)
+		repo.CloneOrPull(branch, this.Source, this.SourceCredentials, config.AlwaysCleanNetRC)
 
 		LOG_OUT("Pushing branch " + branch + " to target-remote")
-		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force, config.AutoForceFallback)
+		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force, config.AutoForceFallback, config.AlwaysCleanNetRC)
 	}
 
 	return nil

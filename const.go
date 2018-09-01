@@ -15,7 +15,7 @@ const EXIT_ERROR_INTERNAL = 99
 const CONFIG_PATH = "~/.config/gogitmirror.toml"
 
 const PROGNAME = "goGitmirror"
-const PROGVERSION = "0.1"
+const PROGVERSION = "0.2"
 
 const TEMPFOLDERNAME = "gogitmirror"
 const NETRCPATH = "~/.netrc"
