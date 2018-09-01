@@ -21,8 +21,8 @@ var netRCBlock bool
 var netRCBackup []byte
 
 func EnterNetRCBlock(host string, usr string, pass string) {
-	//content := "machine " + host + " login " + usr + " password " + pass
-	content := "default " + " login " + usr + " password " + pass
+	content := "machine " + host + "\nlogin " + usr + "\npassword " + pass
+	//content := "default " + " login " + usr + " password " + pass
 
 	netRC_read := true
 	oldNetRC, err := ioutil.ReadFile(ExpandPath(NETRCPATH))
