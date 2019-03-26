@@ -142,8 +142,8 @@ func ExecStatus(force bool) {
 	LOG_LINESEP()
 	config.LoadFromFile(ExpandPath(CONFIG_PATH))
 
-	LOG_OUT(" | "+forceStrLen("NAME",STAT_COL_NAME)+"| "+forceStrLen("BRANCH",STAT_COL_BRANCH)+"| "+forceStrLen("SOURCE",STAT_COL_SOURCE)+" | "+forceStrLen("LOCAL",STAT_COL_LOCAL)+" | "+forceStrLen("TARGET",STAT_COL_TARGET)+"")
-	LOG_OUT("-|-"+strings.Repeat("-", STAT_COL_NAME)+"|-"+strings.Repeat("-", STAT_COL_BRANCH)+"|-"+strings.Repeat("-", STAT_COL_SOURCE)+"-|-"+strings.Repeat("-", STAT_COL_LOCAL)+"-|-"+strings.Repeat("-", STAT_COL_TARGET)+"-")
+	LOG_OUT(" | " + forceStrLen("NAME", STAT_COL_NAME) + "| " + forceStrLen("BRANCH", STAT_COL_BRANCH) + "| " + forceStrLen("SOURCE", STAT_COL_SOURCE) + " | " + forceStrLen("LOCAL", STAT_COL_LOCAL) + " | " + forceStrLen("TARGET", STAT_COL_TARGET) + "")
+	LOG_OUT("-|-" + strings.Repeat("-", STAT_COL_NAME) + "|-" + strings.Repeat("-", STAT_COL_BRANCH) + "|-" + strings.Repeat("-", STAT_COL_SOURCE) + "-|-" + strings.Repeat("-", STAT_COL_LOCAL) + "-|-" + strings.Repeat("-", STAT_COL_TARGET) + "-")
 
 	for _, conf := range config.Remote {
 		conf.Force = conf.Force || force

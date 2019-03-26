@@ -260,7 +260,6 @@ func (this GGMirror) GetStatusLocal(branch string, hashlen int) string {
 		return "ERROR"
 	}
 
-
 	return stdout[:hashlen]
 }
 
