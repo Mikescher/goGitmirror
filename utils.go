@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"github.com/willf/pad"
 	"strings"
 	"syscall"
 
@@ -203,10 +204,12 @@ func CleanFolder(dir string) error {
 	return nil
 }
 
-func CmdRun(folder string, command string, args ...string) (int, string, string, error) {
+func CmdRun(folder string, silent bool, command string, args ...string) (int, string, string, error) {
 
 	//IF DEBUG
-	LOG_OUT("   > " + command + " " + Join(" ", args))
+	if !silent {
+		LOG_OUT("   > " + command + " " + Join(" ", args))
+	}
 
 	wout := new(bytes.Buffer)
 	werr := new(bytes.Buffer)
@@ -279,4 +282,24 @@ func AppendIfUniqueCaseInsensitive(slice []string, i string) []string {
 
 func IsEmpty(value string) bool {
 	return strings.TrimSpace(value) == ""
+}
+
+func forceStrLen(text string, maxlen int) string {
+	if len(text) <= maxlen {
+		return pad.Right(text, maxlen, " ")
+	} else {
+		return text[:maxlen-2] + ".."
+	}
+}
+
+func diff(a string, b string, c string, rtrue string, rfalse string) string {
+	if a != b {
+		return rtrue
+	} else if b != c {
+		return rtrue
+	} else if a != c {
+		return rtrue
+	} else {
+		return rfalse
+	}
 }

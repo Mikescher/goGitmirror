@@ -6,11 +6,19 @@ import (
 
 type GitController struct {
 	Folder string
+	Silent bool
+}
+
+func (this *GitController) SetSilent() {
+	this.Silent = true
 }
 
 func (this *GitController) ExistsLocal() bool {
 
-	exitcode, _, _, err := CmdRun(this.Folder, "git", "status")
+	if !PathExists(this.Folder) {
+		return false
+	}
+	exitcode, _, _, err := this.ExecGitCommandErr("status")
 
 	if err != nil {
 		EXIT_ERROR("Error executing command 'git status'\n\n"+err.Error(), EXIT_GIT_ERROR)
@@ -20,7 +28,7 @@ func (this *GitController) ExistsLocal() bool {
 }
 
 func (this *GitController) ExecGitCommandSafe(args ...string) (int, string, string) {
-	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
+	exitcode, stdout, stderr, err := this.ExecGitCommandErr(args...)
 
 	if err != nil {
 		exitcode = -1
@@ -33,8 +41,12 @@ func (this *GitController) ExecGitCommandSafe(args ...string) (int, string, stri
 	return exitcode, stdout, stderr
 }
 
+func (this *GitController) ExecGitCommandErr(args ...string) (int, string, string, error) {
+	return CmdRun(this.Folder, this.Silent, "git", args...)
+}
+
 func (this *GitController) ExecGitCommand(args ...string) string {
-	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
+	exitcode, stdout, stderr, err := this.ExecGitCommandErr(args...)
 
 	if err != nil {
 		EXIT_ERROR("Error executing command 'git "+args[0]+"'\n\n"+err.Error(), EXIT_GIT_ERROR)
@@ -77,22 +89,8 @@ func (this *GitController) ExecCredGitCommand(cred GGCredentials, forceNetRCClea
 	return stdout
 }
 
-func (this *GitController) QueryGitCommand(args ...string) string {
-	exitcode, stdout, stderr, err := CmdRun(this.Folder, "git", args...)
-
-	if err != nil {
-		EXIT_ERROR("Error executing command 'git "+args[0]+"'\n\n"+err.Error(), EXIT_GIT_ERROR)
-	}
-
-	if exitcode != 0 {
-		EXIT_ERROR("Error in command 'git "+args[0]+"'\n\n"+stderr, EXIT_GIT_ERROR)
-	}
-
-	return stdout
-}
-
 func (this *GitController) RemoveAllRemotes() {
-	branches := this.QueryGitCommand("remote")
+	branches := this.ExecGitCommand("remote")
 
 	for _, remote := range strings.Split(branches, "\n") {
 		if !IsEmpty(remote) {
@@ -196,7 +194,7 @@ func (this *GitController) GarbageCollect() {
 }
 
 func (this *GitController) ListLocalBranches() []string {
-	stdout := this.QueryGitCommand("branch", "-a", "--list")
+	stdout := this.ExecGitCommand("branch", "-a", "--list")
 	lines := strings.Split(stdout, "\n")
 
 	result := make([]string, 0)
@@ -229,7 +227,7 @@ func (this *GitController) ListLocalBranches() []string {
 }
 
 func (this *GitController) HasRemoteBranch(branchname string) bool {
-	stdout := this.QueryGitCommand("branch", "-r", "--list")
+	stdout := this.ExecGitCommand("branch", "-r", "--list")
 	lines := strings.Split(stdout, "\n")
 
 	for _, line := range lines {

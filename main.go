@@ -18,6 +18,11 @@ func main() {
 		ExecVersion()
 	}
 
+	if strings.ToLower(os.Args[1]) == "status" {
+		ExecStatus(ParamIsSet("force"))
+		return
+	}
+
 	if strings.ToLower(os.Args[1]) == "cron" {
 		ExecCron(ParamIsSet("force"))
 		return
@@ -52,6 +57,9 @@ func ExecHelp() {
 	fmt.Println("       update all targets, optionally specify --force to")
 	fmt.Println("       force push all remotes")
 	fmt.Println("")
+	fmt.Println("   status")
+	fmt.Println("       show status of all configured remotes")
+	fmt.Println("")
 	fmt.Println("   cyrpt $password")
 	fmt.Println("       encrypt an password for use in config file")
 }
@@ -85,6 +93,8 @@ func ExecCron(force bool) {
 }
 
 func ExecAdd() {
+	var config GGMConfig
+
 	if len(os.Args) < 4 {
 		EXIT_ERROR("ERROR: The comand [Add] needs at least two arguments (source & target)", EXIT_ERRONEOUS_ADD_ARGS)
 	}
@@ -99,6 +109,23 @@ func ExecAdd() {
 	if !IsValidURL(target) {
 		EXIT_ERROR("ERROR: The Target '"+target+"' is not a valid URL", EXIT_ERRONEOUS_ADD_ARGS)
 	}
+
+	LOG_OUT("Reading config file")
+	LOG_LINESEP()
+	config.LoadFromFile(ExpandPath(CONFIG_PATH))
+
+	f, err := os.OpenFile(ExpandPath(CONFIG_PATH), os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		EXIT_ERROR("ERROR: Could not open file '"+CONFIG_PATH+"'", EXIT_CONFIG_WRITE)
+	}
+
+	defer f.Close()
+
+	var text = "\n\n\n[[Remote]] # Added via commandline\nSource = \"" + source + "\"\nTarget = \"" + target + "\"\n"
+
+	if _, err = f.WriteString(text); err != nil {
+		EXIT_ERROR("ERROR: Could not write to file '"+CONFIG_PATH+"'", EXIT_CONFIG_WRITE)
+	}
 }
 
 func ExecCrypt() {
@@ -107,4 +134,19 @@ func ExecCrypt() {
 	}
 
 	LOG_OUT("aes:" + Encrypt(os.Args[2]))
+}
+
+func ExecStatus(force bool) {
+	var config GGMConfig
+
+	LOG_LINESEP()
+	config.LoadFromFile(ExpandPath(CONFIG_PATH))
+
+	LOG_OUT(" | "+forceStrLen("NAME",STAT_COL_NAME)+"| "+forceStrLen("BRANCH",STAT_COL_BRANCH)+"| "+forceStrLen("SOURCE",STAT_COL_SOURCE)+" | "+forceStrLen("LOCAL",STAT_COL_LOCAL)+" | "+forceStrLen("TARGET",STAT_COL_TARGET)+"")
+	LOG_OUT("-|-"+strings.Repeat("-", STAT_COL_NAME)+"|-"+strings.Repeat("-", STAT_COL_BRANCH)+"|-"+strings.Repeat("-", STAT_COL_SOURCE)+"-|-"+strings.Repeat("-", STAT_COL_LOCAL)+"-|-"+strings.Repeat("-", STAT_COL_TARGET)+"-")
+
+	for _, conf := range config.Remote {
+		conf.Force = conf.Force || force
+		conf.OutputStatus()
+	}
 }

@@ -180,3 +180,114 @@ func (this GGMirror) CleanFolder() {
 	}
 
 }
+
+func (this GGMirror) OutputStatus() {
+	folderLocal := this.GetTargetFolder()
+
+	valName := forceStrLen(this.GetShortName(), STAT_COL_NAME)
+
+	if this.AutoBranchDiscovery {
+
+		repo := GitController{Folder: folderLocal}
+		repo.SetSilent()
+
+		if repo.ExistsLocal() {
+			this.Branches = repo.ListLocalBranches()
+
+			if len(this.Branches) > 0 {
+				for _, branch := range this.Branches {
+					valBranch := forceStrLen(branch, STAT_COL_BRANCH)
+					valSource := forceStrLen(this.GetStatusSource(branch, 8), STAT_COL_SOURCE)
+					valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
+					valRemote := forceStrLen(this.GetStatusRemote(branch, 8), STAT_COL_TARGET)
+					LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+				}
+			} else {
+				valBranch := forceStrLen("NO BRANCHES", STAT_COL_BRANCH)
+				valSource := forceStrLen("ERROR", STAT_COL_SOURCE)
+				valLocal := forceStrLen("ERROR", STAT_COL_LOCAL)
+				valRemote := forceStrLen("ERROR", STAT_COL_TARGET)
+				LOG_OUT("X| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+			}
+		} else {
+			valBranch := forceStrLen("NO REPO", STAT_COL_BRANCH)
+			valSource := forceStrLen("ERROR", STAT_COL_SOURCE)
+			valLocal := forceStrLen("N/A", STAT_COL_LOCAL)
+			valRemote := forceStrLen("ERROR", STAT_COL_TARGET)
+			LOG_OUT("X| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+		}
+	} else {
+		for _, branch := range this.Branches {
+			valBranch := forceStrLen(branch, STAT_COL_BRANCH)
+			valSource := forceStrLen(this.GetStatusSource(branch, 8), STAT_COL_SOURCE)
+			valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
+			valRemote := forceStrLen(this.GetStatusRemote(branch, 8), STAT_COL_TARGET)
+			LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+		}
+	}
+}
+
+func (this GGMirror) GetShortName() string {
+	shatterlings := strings.Split(strings.Trim(this.Source, "/"), "/")
+	sn := shatterlings[len(shatterlings)-1]
+	if strings.HasSuffix(strings.ToLower(sn), ".git") {
+		sn = sn[:len(sn)-4]
+	}
+	return sn
+}
+
+func (this GGMirror) GetStatusLocal(branch string, hashlen int) string {
+	folder := this.GetTargetFolder()
+
+	if !PathIsValid(folder) {
+		return "N/A"
+	}
+
+	repo := GitController{Folder: folder}
+	repo.SetSilent()
+
+	if !repo.ExistsLocal() {
+		return "N/A"
+	}
+
+	exitcode, stdout, _, err := CmdRun(folder, true, "git", "show-ref", branch)
+
+	if err != nil {
+		return "ERROR"
+	}
+
+	if exitcode != 0 {
+		return "ERROR"
+	}
+
+
+	return stdout[:hashlen]
+}
+
+func (this GGMirror) GetStatusSource(branch string, hashlen int) string {
+	exitcode, stdout, _, err := CmdRun("", true, "git", "ls-remote", this.Source, branch)
+
+	if err != nil {
+		return "ERROR"
+	}
+
+	if exitcode != 0 {
+		return "ERROR"
+	}
+
+	return stdout[:hashlen]
+}
+
+func (this GGMirror) GetStatusRemote(branch string, hashlen int) string {
+	exitcode, stdout, _, err := CmdRun("", true, "git", "ls-remote", this.Target, branch)
+
+	if err != nil {
+		return "ERROR"
+	}
+
+	if exitcode != 0 {
+		return "ERROR"
+	}
+
+	return stdout[:hashlen]
+}
