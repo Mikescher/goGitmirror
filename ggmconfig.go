@@ -19,6 +19,8 @@ type GGMConfig struct {
 	Credentials []GGCredentials
 
 	Remote []GGMirror
+
+	AutoMirror []GGAutoMirror
 }
 
 type GGMirror struct {
@@ -33,6 +35,22 @@ type GGMirror struct {
 	SourceCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
 	TargetCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
 	TempBaseFolder    string        // normally not set via TOML, but auto assigned from root config
+}
+
+type GGAutoMirror struct {
+	Source GGAutoMirrorConfig
+	Target GGAutoMirrorConfig
+
+	OnlyMasterBranch bool
+}
+
+type GGAutoMirrorConfig struct {
+	Type string // [Github, Gitea, Gitlab, Bitbucket]
+
+	RootURL string // e.g. https://gilab.com
+	Username string
+
+	Credentials GGCredentials // normally not set via TOML, but auto assigned based on host
 }
 
 type GGCredentials struct {
