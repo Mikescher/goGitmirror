@@ -58,6 +58,8 @@ type GGCredentials struct {
 
 	Username string
 	Password string
+
+	NoSSLVerify bool // default = false
 }
 
 func (this *GGMConfig) LoadFromFile(path string) {
