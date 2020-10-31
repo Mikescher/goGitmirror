@@ -201,7 +201,7 @@ func (this GGMirror) CleanFolder() {
 
 }
 
-func (this GGMirror) OutputStatus() {
+func (this GGMirror) OutputStatus(config GGMConfig) {
 	folderLocal := this.GetTargetFolder()
 
 	valName := forceStrLen(this.GetShortName(), STAT_COL_NAME)
@@ -217,9 +217,9 @@ func (this GGMirror) OutputStatus() {
 			if len(this.Branches) > 0 {
 				for _, branch := range this.Branches {
 					valBranch := forceStrLen(branch, STAT_COL_BRANCH)
-					valSource := forceStrLen(this.GetStatusSource(branch, 8), STAT_COL_SOURCE)
+					valSource := forceStrLen(this.GetStatusSource(config, branch, 8), STAT_COL_SOURCE)
 					valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
-					valRemote := forceStrLen(this.GetStatusRemote(branch, 8), STAT_COL_TARGET)
+					valRemote := forceStrLen(this.GetStatusRemote(config, branch, 8), STAT_COL_TARGET)
 					LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
 				}
 			} else {
@@ -239,9 +239,9 @@ func (this GGMirror) OutputStatus() {
 	} else {
 		for _, branch := range this.Branches {
 			valBranch := forceStrLen(branch, STAT_COL_BRANCH)
-			valSource := forceStrLen(this.GetStatusSource(branch, 8), STAT_COL_SOURCE)
+			valSource := forceStrLen(this.GetStatusSource(config, branch, 8), STAT_COL_SOURCE)
 			valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
-			valRemote := forceStrLen(this.GetStatusRemote(branch, 8), STAT_COL_TARGET)
+			valRemote := forceStrLen(this.GetStatusRemote(config, branch, 8), STAT_COL_TARGET)
 			LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
 		}
 	}
@@ -283,29 +283,37 @@ func (this GGMirror) GetStatusLocal(branch string, hashlen int) string {
 	return stdout[:hashlen]
 }
 
-func (this GGMirror) GetStatusSource(branch string, hashlen int) string {
-	exitcode, stdout, _, err := CmdRun("", true, "git", "ls-remote", this.Source, branch)
-
-	if err != nil {
-		return "ERROR"
-	}
-
-	if exitcode != 0 {
-		return "ERROR"
-	}
-
-	return stdout[:hashlen]
+func (this GGMirror) GetStatusSource(config GGMConfig, branch string, hashlen int) string {
+	return this.GetStatus(config, this.Source, this.SourceCredentials, branch, hashlen)
 }
 
-func (this GGMirror) GetStatusRemote(branch string, hashlen int) string {
-	exitcode, stdout, _, err := CmdRun("", true, "git", "ls-remote", this.Target, branch)
+func (this GGMirror) GetStatusRemote(config GGMConfig, branch string, hashlen int) string {
+	return this.GetStatus(config, this.Target, this.TargetCredentials, branch, hashlen)
+}
 
-	if err != nil {
+
+func (this GGMirror) GetStatus(config GGMConfig, url string, cred GGCredentials, branch string, hashlen int) string {
+	folder := this.GetTargetFolder()
+
+	if !PathIsValid(folder) {
+		folder = this.TempBaseFolder
+	}
+
+	if !PathIsValid(folder) {
 		return "ERROR"
 	}
 
+	repo := GitController{Folder: folder}
+	repo.SetSilent()
+
+	exitcode, stdout, _ := repo.ExecCredGitCommandSafe(cred, config.AlwaysCleanNetRC, cred.NoSSLVerify, "ls-remote", url, branch)
+
 	if exitcode != 0 {
 		return "ERROR"
+	}
+
+	if hashlen > len(stdout) {
+		hashlen = len(stdout)
 	}
 
 	return stdout[:hashlen]

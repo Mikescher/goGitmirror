@@ -22,6 +22,12 @@ var netRCBlock bool
 var netRCBackup []byte
 
 func EnterNetRCBlock(host string, usr string, pass string) {
+
+	// remove port
+	if strings.Contains(host, ":") {
+		host = strings.Split(host, ":")[0]
+	}
+
 	content := "machine " + host + "\nlogin " + usr + "\npassword " + pass
 	//content := "default " + " login " + usr + " password " + pass
 

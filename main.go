@@ -147,6 +147,6 @@ func ExecStatus(force bool) {
 
 	for _, conf := range config.Remote {
 		conf.Force = conf.Force || force
-		conf.OutputStatus()
+		conf.OutputStatus(config)
 	}
 }
