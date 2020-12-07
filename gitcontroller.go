@@ -217,7 +217,8 @@ func (this *GitController) ListLocalBranches() []string {
 		if strings.HasPrefix(strings.ToLower(line), "remotes/origin/") {
 			branch = line[15:]
 		} else {
-			branch = line
+			//branch = line
+			branch = ""
 		}
 
 		branch = strings.TrimSpace(branch)
