@@ -34,7 +34,11 @@ type GGMirror struct {
 
 	SourceCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
 	TargetCredentials GGCredentials // normally not set via TOML, but auto assigned based on host
-	TempBaseFolder    string        // normally not set via TOML, but auto assigned from root config
+
+	SourceCredentialsID string // if set, use these credentials (by-id)
+	TargetCredentialsID string // if set, use these credentials (by-id)
+
+	TempBaseFolder string // normally not set via TOML, but auto assigned from root config
 }
 
 type GGAutoMirror struct {
@@ -54,6 +58,8 @@ type GGAutoMirrorConfig struct {
 }
 
 type GGCredentials struct {
+	ID string // if set credentials are not auto-assigned but can be directly referenced
+
 	Host string // Host is empty string for anonymous login
 
 	Username string
@@ -89,7 +95,9 @@ func (this *GGMConfig) LoadFromFile(path string) {
 			EXIT_ERROR("ERROR: Every remote must have the property 'Target' set", EXIT_CONFIG_READ_ERROR)
 		}
 
-		this.Remote[i].TempBaseFolder = this.TemporaryPath
+		if this.Remote[i].TempBaseFolder == "" {
+			this.Remote[i].TempBaseFolder = this.TemporaryPath
+		}
 
 		if this.Remote[i].Branches == nil {
 			this.Remote[i].Branches = []string{} // Default value
@@ -108,15 +116,39 @@ func (this *GGMConfig) LoadFromFile(path string) {
 			EXIT_ERROR("ERROR: The Target '"+this.Remote[i].Target+"' is not a valid URL", EXIT_CONFIG_READ_ERROR)
 		}
 
-		for _, cred := range this.Credentials {
-			if strings.ToUpper(cred.Host) == strings.ToUpper(urlSource.Host) && this.Remote[i].SourceCredentials.Host == "" {
-				this.Remote[i].SourceCredentials = cred
-				this.Remote[i].SourceCredentials.Host = urlSource.Host
+		if this.Remote[i].SourceCredentials.Host == "" {
+			for _, cred := range this.Credentials {
+				if cred.ID == "" && strings.ToUpper(cred.Host) == strings.ToUpper(urlSource.Host) {
+					this.Remote[i].SourceCredentials = cred
+					this.Remote[i].SourceCredentials.Host = urlSource.Host
+				}
 			}
+		}
+		if this.Remote[i].TargetCredentials.Host == "" {
+			for _, cred := range this.Credentials {
+				if cred.ID == "" && strings.ToUpper(cred.Host) == strings.ToUpper(urlTarget.Host) {
+					this.Remote[i].TargetCredentials = cred
+					this.Remote[i].TargetCredentials.Host = urlTarget.Host
+				}
+			}
+		}
 
-			if strings.ToUpper(cred.Host) == strings.ToUpper(urlTarget.Host) && this.Remote[i].TargetCredentials.Host == "" {
-				this.Remote[i].TargetCredentials = cred
-				this.Remote[i].TargetCredentials.Host = urlTarget.Host
+		if this.Remote[i].SourceCredentialsID != "" {
+			this.Remote[i].SourceCredentials = GGCredentials{}
+			for _, cred := range this.Credentials {
+				if cred.ID == this.Remote[i].SourceCredentialsID {
+					this.Remote[i].SourceCredentials = cred
+					this.Remote[i].SourceCredentials.Host = urlSource.Host
+				}
+			}
+		}
+		if this.Remote[i].TargetCredentialsID != "" {
+			this.Remote[i].TargetCredentials = GGCredentials{}
+			for _, cred := range this.Credentials {
+				if cred.ID == this.Remote[i].TargetCredentialsID {
+					this.Remote[i].TargetCredentials = cred
+					this.Remote[i].TargetCredentials.Host = urlTarget.Host
+				}
 			}
 		}
 	}
