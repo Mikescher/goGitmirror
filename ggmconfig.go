@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -15,6 +16,7 @@ type GGMConfig struct {
 	AutoCleanTempFolder bool
 	AutoForceFallback   bool
 	AlwaysCleanNetRC    bool
+	CredentialMode CredMode
 
 	Credentials []GGCredentials
 
@@ -22,6 +24,13 @@ type GGMConfig struct {
 
 	AutoMirror []GGAutoMirror
 }
+
+type CredMode string
+
+const (
+	CredModeNetRC  CredMode = "NETRC"
+	CredModeHelper CredMode = "CREDHELPER"
+)
 
 type GGMirror struct {
 	Source string
@@ -51,7 +60,7 @@ type GGAutoMirror struct {
 type GGAutoMirrorConfig struct {
 	Type string // [Github, Gitea, Gitlab, Bitbucket]
 
-	RootURL string // e.g. https://gilab.com
+	RootURL  string // e.g. https://gilab.com
 	Username string
 
 	Credentials GGCredentials // normally not set via TOML, but auto assigned based on host
@@ -66,12 +75,17 @@ type GGCredentials struct {
 	Password string
 
 	NoSSLVerify bool // default = false
+	UniqID      string // set by code
 }
 
 func (this *GGMConfig) LoadFromFile(path string) {
 
 	if _, err := toml.DecodeFile(path, &this); err != nil {
 		EXIT_ERROR("ERROR: Cannot load config from "+path+"\n\n"+err.Error(), EXIT_CONFIG_READ_ERROR)
+	}
+
+	if this.CredentialMode == "" {
+		this.CredentialMode = CredModeHelper
 	}
 
 	for i := 0; i < len(this.Credentials); i++ {
@@ -84,6 +98,8 @@ func (this *GGMConfig) LoadFromFile(path string) {
 		} else if this.Credentials[i].Password != "" {
 			LOG_OUT("WARNING: password for host " + this.Credentials[i].Host + " is unencrypted")
 		}
+
+		this.Credentials[i].UniqID = "GGMCRED_"+strconv.Itoa(i)
 	}
 
 	for i := 0; i < len(this.Remote); i++ {
@@ -189,7 +205,7 @@ func (this GGMirror) Update(config GGMConfig) error {
 	}
 
 	if this.AutoBranchDiscovery {
-		repo.CloneOrPull("master", this.Source, this.SourceCredentials, config.AlwaysCleanNetRC)
+		repo.CloneOrPull("master", this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
 		this.Branches = repo.ListLocalBranches()
 
 		for _, branch := range this.Branches {
@@ -201,10 +217,10 @@ func (this GGMirror) Update(config GGMConfig) error {
 
 	for _, branch := range this.Branches {
 		LOG_OUT("Getting branch " + branch + " from source-remote")
-		repo.CloneOrPull(branch, this.Source, this.SourceCredentials, config.AlwaysCleanNetRC)
+		repo.CloneOrPull(branch, this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
 
 		LOG_OUT("Pushing branch " + branch + " to target-remote")
-		repo.PushBack(branch, this.Target, this.TargetCredentials, this.Force, config.AutoForceFallback, config.AlwaysCleanNetRC)
+		repo.PushBack(branch, this.Target, this.TargetCredentials, config.CredentialMode, this.Force, config.AutoForceFallback, config.AlwaysCleanNetRC)
 	}
 
 	return nil
@@ -323,7 +339,6 @@ func (this GGMirror) GetStatusRemote(config GGMConfig, branch string, hashlen in
 	return this.GetStatus(config, this.Target, this.TargetCredentials, branch, hashlen)
 }
 
-
 func (this GGMirror) GetStatus(config GGMConfig, url string, cred GGCredentials, branch string, hashlen int) string {
 	folder := this.GetTargetFolder()
 
@@ -338,7 +353,7 @@ func (this GGMirror) GetStatus(config GGMConfig, url string, cred GGCredentials,
 	repo := GitController{Folder: folder}
 	repo.SetSilent()
 
-	exitcode, stdout, _ := repo.ExecCredGitCommandSafe(cred, config.AlwaysCleanNetRC, cred.NoSSLVerify, "ls-remote", url, branch)
+	exitcode, stdout, _ := repo.ExecCredGitCommandSafe(cred, config.CredentialMode, config.AlwaysCleanNetRC, cred.NoSSLVerify, "ls-remote", url, branch)
 
 	if exitcode != 0 {
 		return "ERROR"

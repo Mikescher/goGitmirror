@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -35,6 +36,11 @@ func main() {
 
 	if strings.ToLower(os.Args[1]) == "crypt" {
 		ExecCrypt()
+		return
+	}
+
+	if strings.ToLower(os.Args[1]) == "credentials" {
+		ExecCredHelper()
 		return
 	}
 
@@ -130,7 +136,7 @@ func ExecAdd() {
 
 func ExecCrypt() {
 	if len(os.Args) < 3 {
-		EXIT_ERROR("ERROR: The comand [Crypt] needs an password supplied as argument", EXIT_ERRONEOUS_CRYPT_ARGS)
+		EXIT_ERROR("ERROR: The comand [Credentials] needs an password supplied as argument", EXIT_ERRONEOUS_CRYPT_ARGS)
 	}
 
 	LOG_OUT("aes:" + Encrypt(os.Args[2]))
@@ -149,4 +155,35 @@ func ExecStatus(force bool) {
 		conf.Force = conf.Force || force
 		conf.OutputStatus(config)
 	}
+}
+
+func ExecCredHelper() {
+	if len(os.Args) < 3 {
+		EXIT_ERROR("ERROR: The comand [Crypt] needs an cred_index", EXIT_ERRONEOUS_CRYPT_ARGS)
+	}
+
+	uniqid := os.Args[2]
+
+	var config GGMConfig
+
+	config.LoadFromFile(ExpandPath(CONFIG_PATH))
+
+	stdin := ""
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		stdin += txt + "\n"
+		if txt == "" {
+			break
+		}
+	}
+
+	for _, cred := range config.Credentials {
+		if cred.UniqID == uniqid {
+			fmt.Print("username=" + cred.Username + "\n" + "password="+cred.Password+"\n\n")
+			return
+		}
+	}
+
+	EXIT_ERROR("Credential '"+uniqid+"' not found", EXIT_ERRONEOUS_CRED_ARGS)
 }

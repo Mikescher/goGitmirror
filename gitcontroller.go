@@ -63,34 +63,48 @@ func (this *GitController) ExecGitCommand(nosslverify bool, args ...string) stri
 	return stdout
 }
 
-func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, forceNetRCClean bool, nosslverify bool, args ...string) (int, string, string) {
+func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, mode CredMode, forceNetRCClean bool, nosslverify bool, args ...string) (int, string, string) {
 
 	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
 		return this.ExecGitCommandSafe(nosslverify, args...)
 	}
 
-	EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
+	if mode == CredModeNetRC {
+		EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
+		exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, args...)
+		ExitNetRCBlock(forceNetRCClean)
+		return exitcode, stdout, stderr
+	} else if mode == CredModeHelper {
+		gitargs := []string{"-c", "credential.helper=\"!"+BINARY_PATH+" credentials "+cred.UniqID+"\""}
+		gitargs = append(gitargs, args...)
+		exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, gitargs...)
+		return exitcode, stdout, stderr
+	}
 
-	exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, args...)
-
-	ExitNetRCBlock(forceNetRCClean)
-
-	return exitcode, stdout, stderr
+	EXIT_ERROR("Invalid CredMode: "+string(mode), EXIT_CONFIG_VALUE_ERROR)
+	return 0, "", ""
 }
 
-func (this *GitController) ExecCredGitCommand(cred GGCredentials, forceNetRCClean bool, nosslverify bool, args ...string) string {
+	func (this *GitController) ExecCredGitCommand(cred GGCredentials, mode CredMode, forceNetRCClean bool, nosslverify bool, args ...string) string {
 
 	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
 		return this.ExecGitCommand(nosslverify, args...)
 	}
 
-	EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
+	if mode == CredModeNetRC {
+		EnterNetRCBlock(cred.Host, cred.Username, cred.Password)
+		stdout := this.ExecGitCommand(nosslverify, args...)
+		ExitNetRCBlock(forceNetRCClean)
+		return stdout
+	} else if mode == CredModeHelper {
+		gitargs := []string{"-c", "credential.helper=\"!"+BINARY_PATH+" credentials "+cred.UniqID+"\""}
+		gitargs = append(gitargs, args...)
+		stdout := this.ExecGitCommand(nosslverify, gitargs...)
+		return stdout
+	}
 
-	stdout := this.ExecGitCommand(nosslverify, args...)
-
-	ExitNetRCBlock(forceNetRCClean)
-
-	return stdout
+	EXIT_ERROR("Invalid CredMode: "+string(mode), EXIT_CONFIG_VALUE_ERROR)
+	return ""
 }
 
 func (this *GitController) RemoveAllRemotes() {
@@ -103,91 +117,91 @@ func (this *GitController) RemoveAllRemotes() {
 	}
 }
 
-func (this *GitController) CloneOrPull(branch string, remote string, cred GGCredentials, forceNetRCClean bool) {
+func (this *GitController) CloneOrPull(branch string, remote string, cred GGCredentials, credmode CredMode, forceNetRCClean bool) {
 
 	if this.ExistsLocal() {
 		this.RemoveAllRemotes()
 		this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
-		this.ExecCredGitCommand(cred, forceNetRCClean, cred.NoSSLVerify, "fetch", "--all")
+		this.ExecCredGitCommand(cred, credmode, forceNetRCClean, cred.NoSSLVerify, "fetch", "--all")
 		this.ExecGitCommand(false, "checkout", "-f", branch)
 		this.ExecGitCommand(false, "reset", "--hard", "origin/"+branch)
 
 	} else {
-		this.ExecCredGitCommand(cred, forceNetRCClean, cred.NoSSLVerify, "clone", remote, ".", "--origin", "origin")
+		this.ExecCredGitCommand(cred, credmode, forceNetRCClean, cred.NoSSLVerify, "clone", remote, ".", "--origin", "origin")
 		this.ExecGitCommand(false, "checkout", "-f", "origin/"+branch)
 	}
 
-	this.ExecCredGitCommand(cred, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
-	this.ExecCredGitCommand(cred, forceNetRCClean, false, "clean", "-f", "-d")
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "clean", "-f", "-d")
 }
 
-func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool, forceNetRCClean bool) {
+func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
 	if this.HasRemoteBranch(branch, cred.NoSSLVerify) {
 		LOG_OUT("Branch " + branch + " does exist on remote " + remote)
-		this.PushBackExistingBranch(branch, remote, cred, useForce, forceFallback, forceNetRCClean, cred.NoSSLVerify)
+		this.PushBackExistingBranch(branch, remote, cred, credmode, useForce, forceFallback, forceNetRCClean, cred.NoSSLVerify)
 	} else {
 		LOG_OUT("Branch " + branch + " does not exist on remote " + remote)
-		this.PushBackNewBranch(branch, remote, cred, useForce, forceFallback, forceNetRCClean, cred.NoSSLVerify)
+		this.PushBackNewBranch(branch, remote, cred, credmode, useForce, forceFallback, forceNetRCClean, cred.NoSSLVerify)
 	}
 }
 
-func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
+func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
-	this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "fetch", "--all")
-	this.ExecCredGitCommand(cred, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
-	this.ExecCredGitCommand(cred, forceNetRCClean, false, "checkout", branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "fetch", "--all")
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "checkout", branch)
 	status := this.ExecGitCommand(false, "status")
 	LOG_OUT(status)
 
 	var commandoutput string
 
 	if useForce {
-		commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
+		commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
 	} else if forceFallback {
-		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags")
+		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags")
 		commandoutput = stdout
 		if exitcode != 0 {
 			LOG_OUT("Command in normal mode failed - falling back to force-push")
-			commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
+			commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags", "--force")
 		}
 	} else {
-		commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags")
+		commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--follow-tags")
 	}
 
 	LOG_OUT(commandoutput)
 }
 
-func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
+func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
 
 	this.RemoveAllRemotes()
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
-	this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "fetch", "--all")
-	this.ExecCredGitCommand(cred, forceNetRCClean, false, "checkout", branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "fetch", "--all")
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "checkout", branch)
 	status := this.ExecGitCommand(false, "status")
 	LOG_OUT(status)
 
 	var commandoutput string
 
 	if useForce {
-		commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags", "--force")
+		commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags", "--force")
 	} else if forceFallback {
-		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags")
+		exitcode, stdout, _ := this.ExecCredGitCommandSafe(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags")
 		commandoutput = stdout
 		if exitcode != 0 {
 			LOG_OUT("Command in normal mode failed - falling back to force-push")
-			commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags", "--force")
+			commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags", "--force")
 		}
 	} else {
-		commandoutput = this.ExecCredGitCommand(cred, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags")
+		commandoutput = this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "push", "origin", "HEAD:"+branch, "--tags")
 	}
 
 	LOG_OUT(commandoutput)
