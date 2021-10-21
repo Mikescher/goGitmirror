@@ -79,6 +79,8 @@ func ExecCron(force bool) {
 
 	for _, conf := range config.Remote {
 		LOG_OUT("Processing remote " + conf.Target)
+		LOG_OUT("   > [Credentials.Source] := " + conf.SourceCredentials.Str())
+		LOG_OUT("   > [Credentials.Target] := " + conf.TargetCredentials.Str())
 
 		conf.Force = conf.Force || force
 
@@ -180,7 +182,7 @@ func ExecCredHelper() {
 
 	for _, cred := range config.Credentials {
 		if cred.UniqID == uniqid {
-			fmt.Print("username=" + cred.Username + "\n" + "password="+cred.Password+"\n\n")
+			fmt.Print("username=" + cred.Username + "\n" + "password=" + cred.Password + "\n\n")
 			return
 		}
 	}

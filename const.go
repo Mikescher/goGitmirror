@@ -25,7 +25,7 @@ const EXIT_ERROR_INTERNAL = 99
 const CONFIG_PATH = "~/.config/gogitmirror.toml"
 
 const PROGNAME = "goGitmirror"
-const PROGVERSION = "0.5"
+const PROGVERSION = "0.6"
 
 const TEMPFOLDERNAME = "gogitmirror"
 const NETRCPATH = "~/.netrc"
@@ -47,7 +47,7 @@ var BINARY_PATH string
 func init() {
 	path, err := os.Executable()
 	if err != nil {
-		EXIT_ERROR("Failed to query os.Executable: " + err.Error(), EXIT_INIT_ERR)
+		EXIT_ERROR("Failed to query os.Executable: "+err.Error(), EXIT_INIT_ERR)
 	}
 	BINARY_PATH = path
 }

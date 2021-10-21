@@ -75,7 +75,7 @@ func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, mode CredM
 		ExitNetRCBlock(forceNetRCClean)
 		return exitcode, stdout, stderr
 	} else if mode == CredModeHelper {
-		gitargs := []string{"-c", "credential.helper=\"!"+BINARY_PATH+" credentials "+cred.UniqID+"\""}
+		gitargs := []string{"-c", "credential.helper=\"!" + BINARY_PATH + " credentials " + cred.UniqID + "\""}
 		gitargs = append(gitargs, args...)
 		exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, gitargs...)
 		return exitcode, stdout, stderr
@@ -85,7 +85,7 @@ func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, mode CredM
 	return 0, "", ""
 }
 
-	func (this *GitController) ExecCredGitCommand(cred GGCredentials, mode CredMode, forceNetRCClean bool, nosslverify bool, args ...string) string {
+func (this *GitController) ExecCredGitCommand(cred GGCredentials, mode CredMode, forceNetRCClean bool, nosslverify bool, args ...string) string {
 
 	if IsEmpty(cred.Host) || IsEmpty(cred.Username) || IsEmpty(cred.Password) {
 		return this.ExecGitCommand(nosslverify, args...)
@@ -97,7 +97,7 @@ func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, mode CredM
 		ExitNetRCBlock(forceNetRCClean)
 		return stdout
 	} else if mode == CredModeHelper {
-		gitargs := []string{"-c", "credential.helper=\"!"+BINARY_PATH+" credentials "+cred.UniqID+"\""}
+		gitargs := []string{"-c", "credential.helper=\"!" + BINARY_PATH + " credentials " + cred.UniqID + "\""}
 		gitargs = append(gitargs, args...)
 		stdout := this.ExecGitCommand(nosslverify, gitargs...)
 		return stdout

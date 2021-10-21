@@ -16,7 +16,7 @@ type GGMConfig struct {
 	AutoCleanTempFolder bool
 	AutoForceFallback   bool
 	AlwaysCleanNetRC    bool
-	CredentialMode CredMode
+	CredentialMode      CredMode
 
 	Credentials []GGCredentials
 
@@ -74,8 +74,16 @@ type GGCredentials struct {
 	Username string
 	Password string
 
-	NoSSLVerify bool // default = false
+	NoSSLVerify bool   // default = false
 	UniqID      string // set by code
+}
+
+func (this GGCredentials) Str() string {
+	if this.ID != "" {
+		return "{{" + this.ID + "}}"
+	} else {
+		return "[" + this.Username + "@" + this.Host + "]"
+	}
 }
 
 func (this *GGMConfig) LoadFromFile(path string) {
@@ -85,7 +93,7 @@ func (this *GGMConfig) LoadFromFile(path string) {
 	}
 
 	if this.CredentialMode == "" {
-		this.CredentialMode = CredModeHelper
+		this.CredentialMode = CredModeNetRC
 	}
 
 	for i := 0; i < len(this.Credentials); i++ {
@@ -99,7 +107,7 @@ func (this *GGMConfig) LoadFromFile(path string) {
 			LOG_OUT("WARNING: password for host " + this.Credentials[i].Host + " is unencrypted")
 		}
 
-		this.Credentials[i].UniqID = "GGMCRED_"+strconv.Itoa(i)
+		this.Credentials[i].UniqID = "GGMCRED_" + strconv.Itoa(i)
 	}
 
 	for i := 0; i < len(this.Remote); i++ {
