@@ -1,8 +1,7 @@
 build:
 	CC=/usr/bin/musl-gcc go build --ldflags '-linkmode external -extldflags "-static"'
 
-run-cron:
-	go build
+run-cron: build
 	./gogitmirror cron
 
 upload: build

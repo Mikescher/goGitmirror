@@ -38,6 +38,8 @@ type GGMirror struct {
 
 	Force bool
 
+	PrimaryBranch string // Used for AutoBranchDiscovery (default == master)
+
 	Branches            []string // If not set AutoBranchDiscovery becomes true
 	AutoBranchDiscovery bool     // normally not set via TOML, but auto assigned based on host
 
@@ -130,6 +132,10 @@ func (this *GGMConfig) LoadFromFile(path string) {
 			this.Remote[i].AutoBranchDiscovery = false
 		}
 
+		if this.Remote[i].PrimaryBranch == "" {
+			this.Remote[i].PrimaryBranch = "master"
+		}
+
 		urlSource, err := url.Parse(this.Remote[i].Source)
 		if err != nil {
 			EXIT_ERROR("ERROR: The Source '"+this.Remote[i].Source+"' is not a valid URL", EXIT_CONFIG_READ_ERROR)
@@ -213,7 +219,7 @@ func (this GGMirror) Update(config GGMConfig) error {
 	}
 
 	if this.AutoBranchDiscovery {
-		repo.CloneOrPull("master", this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+		repo.CloneOrPull(this.PrimaryBranch, this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
 		this.Branches = repo.ListLocalBranches()
 
 		for _, branch := range this.Branches {
