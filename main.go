@@ -29,6 +29,11 @@ func main() {
 		return
 	}
 
+	if strings.ToLower(os.Args[1]) == "single" {
+		ExecSingle(ParamIsSet("force"))
+		return
+	}
+
 	if strings.ToLower(os.Args[1]) == "add" {
 		ExecAdd()
 		return
@@ -98,6 +103,50 @@ func ExecCron(force bool) {
 
 		LOG_LINESEP()
 	}
+}
+
+func ExecSingle(force bool) {
+	if len(os.Args) < 3 {
+		EXIT_ERROR("ERROR: The comand [single] needs an ID as parameter", EXIT_ERRONEOUS_SINGLE_ARGS)
+	}
+
+	search := strings.ToLower(strings.TrimSpace(os.Args[2]))
+
+	var config GGMConfig
+
+	LOG_OUT("Reading config file")
+	LOG_LINESEP()
+	config.LoadFromFile(ExpandPath(CONFIG_PATH))
+
+	for _, conf := range config.Remote {
+
+		if search != "" && (strings.ToLower(conf.ID) == search || strings.ToLower(conf.Source) == search || strings.ToLower(conf.Target) == search) {
+
+			LOG_OUT("Processing remote " + conf.Target)
+			LOG_OUT("   > [Credentials.Source] := " + conf.SourceCredentials.Str())
+			LOG_OUT("   > [Credentials.Target] := " + conf.TargetCredentials.Str())
+
+			conf.Force = conf.Force || force
+
+			if config.AutoCleanTempFolder {
+				LOG_OUT("Testing temp folder for remote " + conf.Target)
+				conf.CleanFolder()
+			}
+
+			conf.Update(config)
+
+			if config.AutoCleanTempFolder {
+				LOG_OUT("Cleaning temp folder for remote " + conf.Target)
+				conf.CleanFolder()
+			}
+
+			LOG_LINESEP()
+
+			return
+		}
+	}
+
+	EXIT_ERROR("ERROR: No matching remote found, supply source-url, target-url or remote-id", EXIT_ERRONEOUS_SINGLE_ID)
 }
 
 func ExecAdd() {
