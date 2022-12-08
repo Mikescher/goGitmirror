@@ -79,6 +79,13 @@ func (this *GitController) ExecCredGitCommandSafe(cred GGCredentials, mode CredM
 		gitargs = append(gitargs, args...)
 		exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, gitargs...)
 		return exitcode, stdout, stderr
+	} else if mode == CredModeCFile {
+		tf, cleanup := CreateCredTempFile(cred.Host, cred.Username, cred.Password)
+		defer cleanup()
+		gitargs := []string{"-c", "credential.helper=store --file " + tf}
+		gitargs = append(gitargs, args...)
+		exitcode, stdout, stderr := this.ExecGitCommandSafe(nosslverify, gitargs...)
+		return exitcode, stdout, stderr
 	}
 
 	EXIT_ERROR("Invalid CredMode: "+string(mode), EXIT_CONFIG_VALUE_ERROR)
@@ -98,6 +105,13 @@ func (this *GitController) ExecCredGitCommand(cred GGCredentials, mode CredMode,
 		return stdout
 	} else if mode == CredModeHelper {
 		gitargs := []string{"-c", "credential.helper=\"!" + BINARY_PATH + " credentials " + cred.UniqID + "\""}
+		gitargs = append(gitargs, args...)
+		stdout := this.ExecGitCommand(nosslverify, gitargs...)
+		return stdout
+	} else if mode == CredModeCFile {
+		tf, cleanup := CreateCredTempFile(cred.Host, cred.Username, cred.Password)
+		defer cleanup()
+		gitargs := []string{"-c", "credential.helper=store --file " + tf}
 		gitargs = append(gitargs, args...)
 		stdout := this.ExecGitCommand(nosslverify, gitargs...)
 		return stdout

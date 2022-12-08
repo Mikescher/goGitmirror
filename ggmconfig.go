@@ -30,9 +30,12 @@ type CredMode string
 const (
 	CredModeNetRC  CredMode = "NETRC"
 	CredModeHelper CredMode = "CREDHELPER"
+	CredModeCFile  CredMode = "CREDFILE"
 )
 
 type GGMirror struct {
+	ID string
+
 	Source string
 	Target string
 
@@ -95,7 +98,7 @@ func (this *GGMConfig) LoadFromFile(path string) {
 	}
 
 	if this.CredentialMode == "" {
-		this.CredentialMode = CredModeNetRC
+		this.CredentialMode = CredModeCFile
 	}
 
 	for i := 0; i < len(this.Credentials); i++ {
@@ -199,7 +202,7 @@ func (this GGMirror) GetTargetFolder() string {
 	return filepath.Join(ExpandPath(this.TempBaseFolder), TEMPFOLDERNAME, buffer.String())
 }
 
-func (this GGMirror) Update(config GGMConfig) error {
+func (this GGMirror) Update(config GGMConfig) {
 	folder := this.GetTargetFolder()
 
 	if !PathIsValid(folder) {
@@ -236,8 +239,6 @@ func (this GGMirror) Update(config GGMConfig) error {
 		LOG_OUT("Pushing branch " + branch + " to target-remote")
 		repo.PushBack(branch, this.Target, this.TargetCredentials, config.CredentialMode, this.Force, config.AutoForceFallback, config.AlwaysCleanNetRC)
 	}
-
-	return nil
 }
 
 func (this GGMirror) CleanFolder() {

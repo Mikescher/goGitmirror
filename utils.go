@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/willf/pad"
+	"net/url"
 	"strings"
 	"syscall"
-
-	"net/url"
 
 	"os"
 	"os/exec"
@@ -63,6 +63,29 @@ func ExitNetRCBlock(forceClean bool) {
 		os.Remove(ExpandPath(NETRCPATH))
 		netRCBlock = false
 	}
+}
+
+func CreateCredTempFile(host string, usr string, pass string) (string, func()) {
+	f, err := os.CreateTemp("", "ggm-cred-") // in Go version older than 1.17 you can use ioutil.TempFile
+	if err != nil {
+		EXIT_ERROR("Failed to create tempfile", EXIT_ERROR_INTERNAL)
+		return "", func() {}
+	}
+
+	cleanup := func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	}
+
+	hosturl, err := url.Parse(host)
+
+	credstr := fmt.Sprintf("%s://%s:%s:%s", hosturl.Scheme, usr, pass, hosturl.Host)
+
+	if _, err := f.Write([]byte(credstr)); err != nil {
+		EXIT_ERROR("Failed to write to "+f.Name(), EXIT_GIT_ERROR)
+	}
+
+	return f.Name(), cleanup
 }
 
 func Contains(slice []string, item string) bool {
