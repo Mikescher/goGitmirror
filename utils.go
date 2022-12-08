@@ -66,7 +66,7 @@ func ExitNetRCBlock(forceClean bool) {
 }
 
 func CreateCredTempFile(host string, usr string, pass string) (string, func()) {
-	f, err := os.CreateTemp("", "ggm-cred-") // in Go version older than 1.17 you can use ioutil.TempFile
+	f, err := os.CreateTemp("", "ggm-cred-")
 	if err != nil {
 		EXIT_ERROR("Failed to create tempfile", EXIT_ERROR_INTERNAL)
 		return "", func() {}
@@ -77,9 +77,7 @@ func CreateCredTempFile(host string, usr string, pass string) (string, func()) {
 		_ = os.Remove(f.Name())
 	}
 
-	hosturl, err := url.Parse(host)
-
-	credstr := fmt.Sprintf("%s://%s:%s:%s", hosturl.Scheme, usr, pass, hosturl.Host)
+	credstr := fmt.Sprintf("%s://%s:%s@%s\n", "https", url.QueryEscape(usr), url.QueryEscape(pass), host)
 
 	if _, err := f.Write([]byte(credstr)); err != nil {
 		EXIT_ERROR("Failed to write to "+f.Name(), EXIT_GIT_ERROR)

@@ -121,11 +121,11 @@ func (this *GitController) ExecCredGitCommand(cred GGCredentials, mode CredMode,
 	return ""
 }
 
-func (this *GitController) RemoveAllRemotes() {
+func (this *GitController) RemoveRemoteIfExists(name string) {
 	branches := this.ExecGitCommand(false, "remote")
 
 	for _, remote := range strings.Split(branches, "\n") {
-		if !IsEmpty(remote) {
+		if !IsEmpty(remote) && (remote == name || name == "") {
 			this.ExecGitCommand(false, "remote", "rm", remote)
 		}
 	}
@@ -134,25 +134,51 @@ func (this *GitController) RemoveAllRemotes() {
 func (this *GitController) CloneOrPull(branch string, remote string, cred GGCredentials, credmode CredMode, forceNetRCClean bool) {
 
 	if this.ExistsLocal() {
-		this.RemoveAllRemotes()
+		this.RemoveRemoteIfExists("origin")
 		this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
 		this.ExecCredGitCommand(cred, credmode, forceNetRCClean, cred.NoSSLVerify, "fetch", "--all")
-		this.ExecGitCommand(false, "checkout", "-f", branch)
+
+		this.ExecGitCommand(false, "checkout", "--force", "-B", branch)
 		this.ExecGitCommand(false, "reset", "--hard", "origin/"+branch)
 
 	} else {
 		this.ExecCredGitCommand(cred, credmode, forceNetRCClean, cred.NoSSLVerify, "clone", remote, ".", "--origin", "origin")
-		this.ExecGitCommand(false, "checkout", "-f", "origin/"+branch)
+
+		this.ExecCredGitCommand(cred, credmode, forceNetRCClean, cred.NoSSLVerify, "fetch", "--all")
+
+		this.ExecGitCommand(false, "checkout", "--force", "origin/"+branch)
 	}
 
-	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
-	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "clean", "-f", "-d")
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "--set-upstream-to=origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "clean", "--force", "-d")
+}
+
+func (this *GitController) FetchAltRemote(name string, remote string, cred GGCredentials, credmode CredMode, forceNetRCClean bool) {
+	this.RemoveRemoteIfExists(name)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "remote", "add", name, remote)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "fetch", name, "--prune", "--prune-tags", "--tags")
+}
+
+func (this *GitController) GetHeadHash(originName string, branch string, hashlen int) string {
+
+	exitcode, stdout, _ := this.ExecGitCommandSafe(false, "show-ref", originName+"/"+branch)
+
+	if exitcode == 0 {
+		hash := strings.TrimSpace(stdout)
+		if len(hash) <= hashlen {
+			return hash
+		} else {
+			return stdout[:hashlen]
+		}
+	} else {
+		return ""
+	}
 }
 
 func (this *GitController) PushBack(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool) {
 
-	this.RemoveAllRemotes()
+	this.RemoveRemoteIfExists("origin")
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
 	if this.HasRemoteBranch(branch, cred.NoSSLVerify) {
@@ -166,11 +192,11 @@ func (this *GitController) PushBack(branch string, remote string, cred GGCredent
 
 func (this *GitController) PushBackExistingBranch(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
 
-	this.RemoveAllRemotes()
+	this.RemoveRemoteIfExists("origin")
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
 	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "fetch", "--all")
-	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "-u", "origin/"+branch, branch)
+	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "branch", "--set-upstream-to=origin/"+branch, branch)
 	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, false, "checkout", branch)
 	status := this.ExecGitCommand(false, "status")
 	LOG_OUT(status)
@@ -195,7 +221,7 @@ func (this *GitController) PushBackExistingBranch(branch string, remote string, 
 
 func (this *GitController) PushBackNewBranch(branch string, remote string, cred GGCredentials, credmode CredMode, useForce bool, forceFallback bool, forceNetRCClean bool, nosslverify bool) {
 
-	this.RemoveAllRemotes()
+	this.RemoveRemoteIfExists("origin")
 	this.ExecGitCommand(false, "remote", "add", "origin", remote)
 
 	this.ExecCredGitCommand(cred, credmode, forceNetRCClean, nosslverify, "fetch", "--all")
@@ -226,7 +252,7 @@ func (this *GitController) GarbageCollect() {
 }
 
 func (this *GitController) ListLocalBranches() []string {
-	stdout := this.ExecGitCommand(false, "branch", "-a", "--list")
+	stdout := this.ExecGitCommand(false, "branch", "--all", "--list")
 	lines := strings.Split(stdout, "\n")
 
 	result := make([]string, 0)
@@ -260,7 +286,7 @@ func (this *GitController) ListLocalBranches() []string {
 }
 
 func (this *GitController) HasRemoteBranch(branchname string, nosslverify bool) bool {
-	stdout := this.ExecGitCommand(nosslverify, "branch", "-r", "--list")
+	stdout := this.ExecGitCommand(nosslverify, "branch", "--remotes", "--list")
 	lines := strings.Split(stdout, "\n")
 
 	for _, line := range lines {

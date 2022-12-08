@@ -16,6 +16,7 @@ type GGMConfig struct {
 	AutoCleanTempFolder bool
 	AutoForceFallback   bool
 	AlwaysCleanNetRC    bool
+	FastUpdateCheck     bool
 	CredentialMode      CredMode
 
 	Credentials []GGCredentials
@@ -221,8 +222,14 @@ func (this GGMirror) Update(config GGMConfig) {
 		repo.GarbageCollect()
 	}
 
+	repo.CloneOrPull(this.PrimaryBranch, this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+
+	if config.FastUpdateCheck {
+		repo.FetchAltRemote("orig-source", this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+		repo.FetchAltRemote("orig-target", this.Target, this.TargetCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+	}
+
 	if this.AutoBranchDiscovery {
-		repo.CloneOrPull(this.PrimaryBranch, this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
 		this.Branches = repo.ListLocalBranches()
 
 		for _, branch := range this.Branches {
@@ -233,6 +240,19 @@ func (this GGMirror) Update(config GGMConfig) {
 	}
 
 	for _, branch := range this.Branches {
+		if config.FastUpdateCheck {
+			LOG_OUT("Fast-Check branch " + branch)
+
+			shaLoc := repo.GetHeadHash("orig-source", branch, 40)
+			shaRem := repo.GetHeadHash("orig-target", branch, 40)
+
+			if shaLoc != "" && shaRem != "" && shaLoc == shaRem {
+				LOG_OUT("Skip branch " + branch + " (up-to-date with SHA " + shaRem[0:8] + ")")
+				LOG_OUT("")
+				continue
+			}
+		}
+
 		LOG_OUT("Getting branch " + branch + " from source-remote")
 		repo.CloneOrPull(branch, this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
 
@@ -275,15 +295,32 @@ func (this GGMirror) OutputStatus(config GGMConfig) {
 		repo.SetSilent()
 
 		if repo.ExistsLocal() {
+
+			if config.FastUpdateCheck {
+				repo.FetchAltRemote("orig-source", this.Source, this.SourceCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+				repo.FetchAltRemote("orig-target", this.Target, this.TargetCredentials, config.CredentialMode, config.AlwaysCleanNetRC)
+			}
+
 			this.Branches = repo.ListLocalBranches()
 
 			if len(this.Branches) > 0 {
-				for _, branch := range this.Branches {
-					valBranch := forceStrLen(branch, STAT_COL_BRANCH)
-					valSource := forceStrLen(this.GetStatusSource(config, branch, 8), STAT_COL_SOURCE)
-					valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
-					valRemote := forceStrLen(this.GetStatusRemote(config, branch, 8), STAT_COL_TARGET)
-					LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+
+				if config.FastUpdateCheck {
+					for _, branch := range this.Branches {
+						valBranch := forceStrLen(branch, STAT_COL_BRANCH)
+						valSource := forceStrLen(repo.GetHeadHash("orig-source", branch, 8), STAT_COL_SOURCE)
+						valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
+						valRemote := forceStrLen(repo.GetHeadHash("orig-target", branch, 8), STAT_COL_TARGET)
+						LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+					}
+				} else {
+					for _, branch := range this.Branches {
+						valBranch := forceStrLen(branch, STAT_COL_BRANCH)
+						valSource := forceStrLen(this.GetStatusSource(config, branch, 8), STAT_COL_SOURCE)
+						valLocal := forceStrLen(this.GetStatusLocal(branch, 8), STAT_COL_LOCAL)
+						valRemote := forceStrLen(this.GetStatusRemote(config, branch, 8), STAT_COL_TARGET)
+						LOG_OUT(diff(valSource, valLocal, valRemote, "X", " ") + "| " + valName + "| " + valBranch + "| " + valSource + " | " + valLocal + " | " + valRemote)
+					}
 				}
 			} else {
 				valBranch := forceStrLen("NO BRANCHES", STAT_COL_BRANCH)
